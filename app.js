@@ -626,7 +626,10 @@
         const link = document.createElement('a');
         link.download = 'pixel-sorted.png';
         link.href = canvas.toDataURL('image/png');
+        link.style.display = 'none';
+        document.body.appendChild(link);
         link.click();
+        setTimeout(() => document.body.removeChild(link), 1000);
     });
 
     // ============================================
@@ -755,8 +758,13 @@
             const link = document.createElement('a');
             link.download = 'pixel-sort-history.zip';
             link.href = URL.createObjectURL(zipBlob);
+            link.style.display = 'none';
+            document.body.appendChild(link);
             link.click();
-            URL.revokeObjectURL(link.href);
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            }, 1000);
 
             toast.textContent = `Exported ${state.history.length} steps as ZIP`;
         } catch (err) {
