@@ -51,6 +51,128 @@
     };
 
     // ============================================
+    // IndexedDB State Persistence
+    // ============================================
+
+    const DB_NAME = 'PixelSortDB';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'appState';
+
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open(DB_NAME, DB_VERSION);
+            req.onupgradeneeded = () => {
+                req.result.createObjectStore(STORE_NAME);
+            };
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    async function saveState() {
+        try {
+            const db = await openDB();
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+
+            // Save canvas as blob
+            const blob = await new Promise(resolve => {
+                canvas.toBlob(resolve, 'image/png');
+            });
+
+            // Save original image as data URL
+            let origDataUrl = null;
+            if (state.originalImage) {
+                const tmpCanvas = document.createElement('canvas');
+                tmpCanvas.width = state.originalImage.naturalWidth;
+                tmpCanvas.height = state.originalImage.naturalHeight;
+                tmpCanvas.getContext('2d').drawImage(state.originalImage, 0, 0);
+                origDataUrl = tmpCanvas.toDataURL('image/png');
+            }
+
+            store.put(blob, 'canvasBlob');
+            store.put(origDataUrl, 'originalImage');
+            store.put({
+                sortMode: state.sortMode,
+                direction: state.direction,
+                thresholdLower: state.thresholdLower,
+                thresholdUpper: state.thresholdUpper,
+                noiseAmount: state.noiseAmount,
+                imageLoaded: state.imageLoaded,
+            }, 'settings');
+
+            await new Promise((resolve, reject) => {
+                tx.oncomplete = resolve;
+                tx.onerror = reject;
+            });
+            db.close();
+        } catch (e) {
+            console.warn('Failed to save state:', e);
+        }
+    }
+
+    async function restoreState() {
+        try {
+            const db = await openDB();
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+
+            const [blob, origDataUrl, settings] = await Promise.all([
+                new Promise(r => { const req = store.get('canvasBlob'); req.onsuccess = () => r(req.result); req.onerror = () => r(null); }),
+                new Promise(r => { const req = store.get('originalImage'); req.onsuccess = () => r(req.result); req.onerror = () => r(null); }),
+                new Promise(r => { const req = store.get('settings'); req.onsuccess = () => r(req.result); req.onerror = () => r(null); }),
+            ]);
+            db.close();
+
+            if (settings) {
+                state.sortMode = settings.sortMode || 'brightness';
+                state.direction = settings.direction || 'horizontal';
+                state.thresholdLower = settings.thresholdLower ?? 50;
+                state.thresholdUpper = settings.thresholdUpper ?? 200;
+                state.noiseAmount = settings.noiseAmount ?? 0;
+                state.imageLoaded = settings.imageLoaded || false;
+
+                // Restore UI controls
+                document.querySelectorAll('#sort-mode-group .btn-toggle').forEach(b => {
+                    b.classList.toggle('active', b.dataset.mode === state.sortMode);
+                });
+                document.querySelectorAll('#direction-group .btn-toggle').forEach(b => {
+                    b.classList.toggle('active', b.dataset.direction === state.direction);
+                });
+                threshLowerSlider.value = state.thresholdLower;
+                threshLowerNum.value = state.thresholdLower;
+                threshUpperSlider.value = state.thresholdUpper;
+                threshUpperNum.value = state.thresholdUpper;
+                noiseSlider.value = state.noiseAmount;
+                noiseNum.value = state.noiseAmount;
+            }
+
+            // Restore original image
+            if (origDataUrl) {
+                const img = new Image();
+                img.onload = () => { state.originalImage = img; };
+                img.src = origDataUrl;
+            }
+
+            // Restore canvas
+            if (blob && state.imageLoaded) {
+                const img = new Image();
+                img.onload = () => {
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    ctx.drawImage(img, 0, 0);
+                    dropZone.classList.add('hidden');
+                    canvas.classList.remove('hidden');
+                    updateUI();
+                };
+                img.src = URL.createObjectURL(blob);
+            }
+        } catch (e) {
+            console.warn('Failed to restore state:', e);
+        }
+    }
+
+    // ============================================
     // Image Upload & Display
     // ============================================
 
@@ -67,6 +189,7 @@
                 state.undoStack = [];
                 renderImage(img);
                 updateUI();
+                saveState();
             };
             img.src = e.target.result;
         };
@@ -302,6 +425,7 @@
         state.selection = null;
         hideSelectionOverlay();
         updateUI();
+        saveState();
     });
 
     // ============================================
@@ -338,6 +462,7 @@
         ctx.putImageData(imageData, 0, 0);
 
         updateUI();
+        saveState();
     });
 
     // ============================================
@@ -351,6 +476,7 @@
         canvas.height = prev.height;
         ctx.putImageData(prev, 0, 0);
         updateUI();
+        saveState();
     });
 
     // ============================================
@@ -368,6 +494,6 @@
     // Init
     // ============================================
 
-    updateUI();
+    restoreState().then(() => updateUI());
 
 })();
