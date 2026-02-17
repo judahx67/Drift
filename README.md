@@ -1,6 +1,8 @@
 # Drift.
   
 Interactive regional pixel sorting and glitch art playground. Fast, client-side, and persistent.
+<img width="1217" height="602" alt="5245" src="https://github.com/user-attachments/assets/640adbc6-e4de-4b62-89d8-fa5b852b69f5" />
+
 
 Everything runs in your browser. Nothing is uploaded.
 
