@@ -17,12 +17,18 @@
     const btnUpload = $('#btn-upload');
     const btnExport = $('#btn-export');
     const btnSort = $('#btn-sort');
-    const btnUndo = $('#btn-undo');
     const btnReset = $('#btn-reset');
     const btnClearSelection = $('#btn-clear-selection');
     const selectionOverlay = $('#selection-overlay');
     const selectionInfo = $('#selection-info');
     const selectionCoords = $('#selection-coords');
+
+    // History nav
+    const historyNav = $('#history-nav');
+    const btnHistoryBack = $('#btn-history-back');
+    const btnHistoryForward = $('#btn-history-forward');
+    const btnFlatten = $('#btn-flatten');
+    const historyCounter = $('#history-counter');
 
     // Slider / number pairs
     const threshLowerSlider = $('#threshold-lower');
@@ -45,7 +51,8 @@
         thresholdUpper: 200,
         noiseAmount: 0,
         selection: null,        // { x, y, w, h } in canvas coords
-        undoStack: [],          // Array of ImageData snapshots
+        history: [],            // Array of ImageData snapshots
+        historyIndex: -1,       // Current position in history (-1 = no history)
         isDragging: false,
         dragStart: null,        // { x, y } in canvas coords
     };
@@ -186,8 +193,10 @@
                 state.originalImage = img;
                 state.imageLoaded = true;
                 state.selection = null;
-                state.undoStack = [];
+                state.history = [];
+                state.historyIndex = -1;
                 renderImage(img);
+                pushHistory(); // save initial state as step 0
                 updateUI();
                 saveState();
             };
@@ -297,6 +306,29 @@
     syncPair(noiseSlider, noiseNum, 'noiseAmount');
 
     // ============================================
+    // History Management
+    // ============================================
+
+    function pushHistory() {
+        // Discard any forward history
+        state.history = state.history.slice(0, state.historyIndex + 1);
+        // Save current canvas state
+        state.history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        state.historyIndex = state.history.length - 1;
+    }
+
+    function navigateHistory(index) {
+        if (index < 0 || index >= state.history.length) return;
+        state.historyIndex = index;
+        const snapshot = state.history[index];
+        canvas.width = snapshot.width;
+        canvas.height = snapshot.height;
+        ctx.putImageData(snapshot, 0, 0);
+        updateUI();
+        saveState();
+    }
+
+    // ============================================
     // UI Updates
     // ============================================
 
@@ -306,7 +338,6 @@
 
         btnExport.disabled = !hasImage;
         btnSort.disabled = !hasImage || !hasSelection;
-        btnUndo.disabled = state.undoStack.length === 0;
         btnReset.disabled = !hasImage;
 
         // Selection info
@@ -317,6 +348,17 @@
         } else {
             selectionInfo.hidden = true;
             hideSelectionOverlay();
+        }
+
+        // History nav
+        if (hasImage && state.history.length > 0) {
+            historyNav.hidden = false;
+            btnHistoryBack.disabled = state.historyIndex <= 0;
+            btnHistoryForward.disabled = state.historyIndex >= state.history.length - 1;
+            btnFlatten.disabled = state.history.length <= 1;
+            historyCounter.textContent = `Step ${state.historyIndex + 1} / ${state.history.length}`;
+        } else {
+            historyNav.hidden = true;
         }
     }
 
@@ -420,8 +462,8 @@
 
     btnReset.addEventListener('click', () => {
         if (!state.originalImage) return;
-        state.undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
         renderImage(state.originalImage);
+        pushHistory();
         state.selection = null;
         hideSelectionOverlay();
         updateUI();
@@ -447,8 +489,8 @@
     btnSort.addEventListener('click', () => {
         if (!state.imageLoaded || !state.selection) return;
 
-        // Save current state for undo
-        state.undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        // Current state is already in history at historyIndex —
+        // we only push the new sorted result after sorting
 
         // Show processing overlay, then sort after a frame so the overlay renders
         const overlay = document.getElementById('processing-overlay');
@@ -468,6 +510,8 @@
 
                 overlay.classList.remove('active');
 
+                pushHistory(); // save the sorted result
+
                 // Show toast
                 const toast = document.getElementById('toast');
                 toast.textContent = 'Pixels sorted!';
@@ -481,18 +525,33 @@
     });
 
     // ============================================
-    // Undo
+    // History Navigation
     // ============================================
 
-    btnUndo.addEventListener('click', () => {
-        if (state.undoStack.length === 0) return;
-        const prev = state.undoStack.pop();
-        canvas.width = prev.width;
-        canvas.height = prev.height;
-        ctx.putImageData(prev, 0, 0);
+    btnHistoryBack.addEventListener('click', () => {
+        navigateHistory(state.historyIndex - 1);
+    });
+
+    btnHistoryForward.addEventListener('click', () => {
+        navigateHistory(state.historyIndex + 1);
+    });
+
+    btnFlatten.addEventListener('click', () => {
+        if (state.history.length <= 1) return;
+        // Keep only the current snapshot
+        const current = state.history[state.historyIndex];
+        state.history = [current];
+        state.historyIndex = 0;
+
+        const toast = document.getElementById('toast');
+        toast.textContent = 'History flattened';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+
         updateUI();
         saveState();
     });
+
 
     // ============================================
     // Recalculate selection overlay on resize
@@ -525,12 +584,18 @@
                 showToast('Image exported!');
             }
         }
-        // Ctrl+Z — Undo
+        // Ctrl+Z — History Back
         if (e.ctrlKey && e.key === 'z') {
             e.preventDefault();
-            btnUndo.click();
-            if (state.undoStack.length >= 0) {
-                showToast('Undone');
+            if (state.historyIndex > 0) {
+                navigateHistory(state.historyIndex - 1);
+            }
+        }
+        // Ctrl+Y / Ctrl+Shift+Z — History Forward
+        if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'Z')) {
+            e.preventDefault();
+            if (state.historyIndex < state.history.length - 1) {
+                navigateHistory(state.historyIndex + 1);
             }
         }
         // Enter — Apply Sort

@@ -91,7 +91,6 @@
       <div class="control-group" id="action-controls">
         <button id="btn-sort" type="button" class="btn-primary" disabled>Apply Sort <span
             class="kbd-hint">Enter</span></button>
-        <button id="btn-undo" type="button" disabled>Undo <span class="kbd-hint">Ctrl+Z</span></button>
         <button id="btn-reset" type="button" disabled>Reset</button>
       </div>
     </section>
@@ -114,6 +113,14 @@
       <div id="selection-info" hidden>
         <span id="selection-coords"></span>
         <button id="btn-clear-selection" type="button">Clear Selection</button>
+      </div>
+
+      <!-- History Navigation -->
+      <div id="history-nav" hidden>
+        <button id="btn-history-back" type="button" disabled>← Back <span class="kbd-hint">Ctrl+Z</span></button>
+        <span id="history-counter">Step 1 / 1</span>
+        <button id="btn-history-forward" type="button" disabled>Forward → <span class="kbd-hint">Ctrl+Y</span></button>
+        <button id="btn-flatten" type="button">Flatten</button>
       </div>
     </section>
   </main>
