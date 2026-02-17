@@ -326,15 +326,16 @@
         // Save current state for undo
         state.undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
 
-        // TODO: call pixelsort engine
-        console.log('Sort requested:', {
+        // Get full image data, sort the selected region, write it back
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        PixelSort.sort(imageData, state.selection, {
             mode: state.sortMode,
             direction: state.direction,
-            selection: state.selection,
             thresholdLower: state.thresholdLower,
             thresholdUpper: state.thresholdUpper,
             noiseAmount: state.noiseAmount,
         });
+        ctx.putImageData(imageData, 0, 0);
 
         updateUI();
     });
