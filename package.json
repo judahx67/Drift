@@ -1,7 +1,7 @@
 {
-  "name": "github-pixel_sort",
+  "name": "Drift.",
   "version": "1.0.0",
-  "description": "A client-side web app for **pixel sorting** — the glitch-art technique of rearranging pixels in selected image regions by brightness, hue, saturation, or individual color channels.",
+  "description": "Interactive regional pixel sorting and glitch art playground. Fast, client-side, and persistent.",
   "main": "app.js",
   "scripts": {
     "dev": "vite",

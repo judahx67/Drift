@@ -1,6 +1,6 @@
-# Pixel Sort
-
-A client-side web app for **pixel sorting** — the glitch-art technique of rearranging pixels in selected image regions by brightness, hue, saturation, or individual color channels.
+# Drift.
+  
+Interactive regional pixel sorting and glitch art playground. Fast, client-side, and persistent.
 
 Everything runs in your browser. Nothing is uploaded.
 
@@ -30,17 +30,6 @@ Everything runs in your browser. Nothing is uploaded.
    - Use **← Back** / **Forward →** to browse iterations.
    - Click **Export** to download the final image.
 
-## Deployment
-
-You can host this application for free on services like **Netlify** or **Vercel** with automatic deployment from GitHub:
-
-1. Push this repository to your GitHub account.
-2. Sign in to [Netlify](https://www.netlify.com/).
-3. Click **Add new site** > **Import an existing project**.
-4. Select your **GitHub** repository.
-5. Netlify will automatically detect the settings (thanks to `netlify.toml`).
-6. Click **Deploy**. Any future commits to `main` will automatically trigger a new build.
-
 ## Tech Stack
 
 - **HTML / CSS / JavaScript** — ES Modules
@@ -49,16 +38,15 @@ You can host this application for free on services like **Netlify** or **Vercel*
 - **IndexedDB** — client-side state persistence
 - **JSZip** — batch history export as ZIP
 
-## File Structure
+## Credits & Inspiration
 
-```
-index.html      — HTML shell
-style.css       — Design system and layout
-app.js          — Application logic, state, UI
-pixelsort.js    — Pixel sorting engine (modes, intervals, noise)
-filters.js      — Image filter helpers (sharpen kernel, CSS filters)
-```
+This project was inspired by several excellent resources on pixel sorting:
+
+- **Acerola's YouTube Video**: [Pixel Sorting: The most overused glitch effect?](https://www.youtube.com/watch?v=HMmmBDRy-jE) — Fantastic breakdown of the math and soul of the effect.
+- **Satyarth's Original Implementation**: [pixelsort (GitHub)](https://github.com/satyarth/pixelsort) — The gold standard for command-line pixel sorting.
+- **Satyarth's Deep Dive**: [Pixel Sorting Article](https://satyarth.me/articles/pixel-sorting/) — A detailed technical explanation that helped shape this engine.
 
 ## License
 
 MIT
+

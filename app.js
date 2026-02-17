@@ -460,12 +460,21 @@ function updateUI() {
     btnReset.disabled = !hasImage;
 
     // Selection info
-    if (hasSelection) {
+    if (hasImage) {
         selectionInfo.hidden = false;
-        const s = state.selection;
-        selectionCoords.textContent = `x: ${s.x}  y: ${s.y}  w: ${s.w}  h: ${s.h}`;
+        if (hasSelection) {
+            const s = state.selection;
+            selectionCoords.textContent = `x: ${s.x}  y: ${s.y}  w: ${s.w}  h: ${s.h}`;
+            btnSelectAll.disabled = false;
+        } else {
+            selectionCoords.textContent = 'No selection';
+            btnSelectAll.disabled = false;
+        }
     } else {
         selectionInfo.hidden = true;
+    }
+
+    if (!hasSelection) {
         hideSelectionOverlay();
     }
 

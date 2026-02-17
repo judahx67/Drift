@@ -4,9 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pixel Sort</title>
-  <meta name="description"
-    content="Client-side pixel sorting tool. Select a region, sort pixels by brightness, hue, saturation, and more.">
+  <title>Drift. | Regional Pixel Sorting</title>
+  <meta name="description" content="Interactive regional pixel sorting">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -15,7 +14,7 @@
 
 <body>
   <header id="app-header">
-    <h1>pixel sort</h1>
+    <h1>Drift.</h1>
     <p class="subtitle">select a region · sort pixels · export</p>
   </header>
 
@@ -24,9 +23,11 @@
     <section id="controls">
       <!-- File actions -->
       <div class="control-group" id="file-controls">
-        <button id="btn-upload" type="button">Upload Image <span class="kbd-hint">Ctrl+O</span></button>
+        <button id="btn-upload" type="button" data-tooltip="Load an image from your device"
+          data-tooltip-pos="bottom">Upload Image <span class="kbd-hint">Ctrl+O</span></button>
         <input type="file" id="file-input" accept="image/*" hidden>
-        <button id="btn-export" type="button" disabled>Export PNG <span class="kbd-hint">Ctrl+S</span></button>
+        <button id="btn-export" type="button" data-tooltip="Save the current canvas as a PNG" data-tooltip-pos="bottom"
+          disabled>Export PNG <span class="kbd-hint">Ctrl+S</span></button>
       </div>
 
       <div class="separator"></div>
@@ -35,13 +36,20 @@
       <div class="control-group" id="sort-mode-controls">
         <label class="control-label">Sort By</label>
         <div class="btn-group" id="sort-mode-group">
-          <button class="btn-toggle active" data-mode="brightness">Brightness</button>
-          <button class="btn-toggle" data-mode="hue">Hue</button>
-          <button class="btn-toggle" data-mode="saturation">Saturation</button>
-          <button class="btn-toggle" data-mode="red">R</button>
-          <button class="btn-toggle" data-mode="green">G</button>
-          <button class="btn-toggle" data-mode="blue">B</button>
-          <button class="btn-toggle" data-mode="gamma">Gamma</button>
+          <button class="btn-toggle active" data-mode="brightness" data-tooltip="Sort by pixel luminance"
+            data-tooltip-pos="bottom">Brightness</button>
+          <button class="btn-toggle" data-mode="hue" data-tooltip="Sort by color value (angle)"
+            data-tooltip-pos="bottom">Hue</button>
+          <button class="btn-toggle" data-mode="saturation" data-tooltip="Sort by color intensity"
+            data-tooltip-pos="bottom">Saturation</button>
+          <button class="btn-toggle" data-mode="red" data-tooltip="Sort by Red channel"
+            data-tooltip-pos="bottom">R</button>
+          <button class="btn-toggle" data-mode="green" data-tooltip="Sort by Green channel"
+            data-tooltip-pos="bottom">G</button>
+          <button class="btn-toggle" data-mode="blue" data-tooltip="Sort by Blue channel"
+            data-tooltip-pos="bottom">B</button>
+          <button class="btn-toggle" data-mode="gamma" data-tooltip="Sort by perceived brightness"
+            data-tooltip-pos="bottom">Gamma</button>
         </div>
       </div>
 
@@ -51,8 +59,10 @@
       <div class="control-group" id="direction-controls">
         <label class="control-label">Direction</label>
         <div class="btn-group" id="direction-group">
-          <button class="btn-toggle active" data-direction="horizontal">Horizontal</button>
-          <button class="btn-toggle" data-direction="vertical">Vertical</button>
+          <button class="btn-toggle active" data-direction="horizontal" data-tooltip="Sort pixels in rows"
+            data-tooltip-pos="bottom">Horizontal</button>
+          <button class="btn-toggle" data-direction="vertical" data-tooltip="Sort pixels in columns"
+            data-tooltip-pos="bottom">Vertical</button>
         </div>
       </div>
 
@@ -60,7 +70,9 @@
 
       <!-- Thresholds -->
       <div class="control-group" id="threshold-controls">
-        <label class="control-label">Thresholds</label>
+        <label class="control-label"
+          data-tooltip="Defines the range of values to be sorted. Pixels outside this range are ignored."
+          data-tooltip-pos="bottom" data-tooltip-wide>Thresholds</label>
         <div class="slider-row">
           <span class="slider-label">Lower</span>
           <input type="range" id="threshold-lower" min="0" max="255" value="50" class="slider">
@@ -77,7 +89,8 @@
 
       <!-- Noise -->
       <div class="control-group" id="noise-controls">
-        <label class="control-label">Noise</label>
+        <label class="control-label" data-tooltip="Adds random variation to the threshold boundaries"
+          data-tooltip-pos="bottom">Noise</label>
         <div class="slider-row">
           <span class="slider-label">Amount</span>
           <input type="range" id="noise-amount" min="0" max="100" value="0" class="slider">
@@ -91,28 +104,31 @@
       <div class="control-group" id="filter-controls">
         <label class="control-label">Filter</label>
         <div class="btn-group" id="filter-group">
-          <button class="btn-toggle" data-filter="brightness">Bright</button>
-          <button class="btn-toggle" data-filter="contrast">Contrast</button>
-          <button class="btn-toggle" data-filter="blur">Blur</button>
-          <button class="btn-toggle" data-filter="sharpen">Sharpen</button>
-          <button class="btn-toggle" data-filter="invert">Invert</button>
-          <button class="btn-toggle" data-filter="grayscale">B&W</button>
+          <button class="btn-toggle" data-filter="brightness" data-tooltip="Adjust brightness">Bright</button>
+          <button class="btn-toggle" data-filter="contrast" data-tooltip="Adjust contrast">Contrast</button>
+          <button class="btn-toggle" data-filter="blur" data-tooltip="Blur image details">Blur</button>
+          <button class="btn-toggle" data-filter="sharpen" data-tooltip="Enhance edges and details">Sharpen</button>
+          <button class="btn-toggle" data-filter="invert" data-tooltip="Reverse colors">Invert</button>
+          <button class="btn-toggle" data-filter="grayscale" data-tooltip="B&W conversion">B&W</button>
         </div>
         <div class="slider-row" id="filter-intensity-row" style="display:none">
-          <span class="slider-label">Intensity</span>
+          <span class="slider-label" data-tooltip="Current filter strength">Intensity</span>
           <input type="range" id="filter-intensity" min="-100" max="100" value="50" class="slider">
           <input type="number" id="filter-intensity-num" min="-100" max="100" value="50" class="num-input">
         </div>
-        <button id="btn-apply-filter" type="button" disabled>Apply Filter <span class="kbd-hint">F</span></button>
+        <button id="btn-apply-filter" type="button" data-tooltip="Apply the selected filter to history" disabled>Apply
+          Filter <span class="kbd-hint">F</span></button>
       </div>
 
       <div class="separator"></div>
 
       <!-- Actions -->
       <div class="control-group" id="action-controls">
-        <button id="btn-sort" type="button" class="btn-primary" disabled>Commit <span
+        <button id="btn-sort" type="button" class="btn-primary"
+          data-tooltip="Permanently apply current preview and save to history" disabled>Commit <span
             class="kbd-hint">Enter</span></button>
-        <button id="btn-reset" type="button" disabled>Reset</button>
+        <button id="btn-reset" type="button" data-tooltip="Restore selection to its state before sorting"
+          disabled>Reset</button>
       </div>
     </section>
 
@@ -133,23 +149,28 @@
       <!-- Selection info -->
       <div id="selection-info" hidden>
         <span id="selection-coords"></span>
-        <button id="btn-select-all" type="button">Select All</button>
-        <button id="btn-clear-selection" type="button">Clear Selection</button>
+        <button id="btn-select-all" type="button" data-tooltip="Select the entire image">Select All</button>
+        <button id="btn-clear-selection" type="button" data-tooltip="Remove selection box">Clear Selection</button>
       </div>
 
       <!-- History Navigation -->
       <div id="history-nav" hidden>
-        <button id="btn-history-back" type="button" disabled>← Back <span class="kbd-hint">Ctrl+Z</span></button>
+        <button id="btn-history-back" type="button" data-tooltip="Previous iteration" disabled>← Back <span
+            class="kbd-hint">Ctrl+Z</span></button>
         <span id="history-counter">Step 1 / 1</span>
-        <button id="btn-history-forward" type="button" disabled>Forward → <span class="kbd-hint">Ctrl+Y</span></button>
-        <button id="btn-flatten" type="button">Flatten</button>
+        <button id="btn-history-forward" type="button" data-tooltip="Next iteration" disabled>Forward → <span
+            class="kbd-hint">Ctrl+Y</span></button>
+        <button id="btn-flatten" type="button"
+          data-tooltip="Keep current iteration and discard all other history steps">Flatten</button>
       </div>
 
       <!-- Storage Info -->
       <div id="storage-info" hidden>
         <span id="storage-indicator">💾 0 steps · ~0 MB</span>
-        <button id="btn-clear-history" type="button">Clear History</button>
-        <button id="btn-export-zip" type="button">Save All as ZIP</button>
+        <button id="btn-clear-history" type="button" data-tooltip="Delete all history and keep current step">Clear
+          History</button>
+        <button id="btn-export-zip" type="button" data-tooltip="Download all history iterations as a ZIP file">Save All
+          as ZIP</button>
       </div>
     </section>
   </main>

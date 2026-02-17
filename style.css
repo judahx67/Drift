@@ -303,13 +303,22 @@ button:disabled:hover {
   justify-content: center;
   overflow: hidden;
   background: var(--bg-alt);
+  padding: 3rem;
+  /* Expanded area for easy edge selection */
 }
 
 #canvas {
   display: block;
+  /* Ensure canvas scales down to fit container */
   max-width: 100%;
-  max-height: 70vh;
+  max-height: 55vh;
+  /* Constrain vertical height for better UX on 1080p screens */
+  width: auto;
+  height: auto;
+  object-fit: contain;
   cursor: crosshair;
+  /* Fix flex item sizing issues */
+  flex: 0 1 auto;
 }
 
 #canvas.hidden {
@@ -370,6 +379,11 @@ button:disabled:hover {
   padding: 0.5rem 1rem;
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
+}
+
+#selection-coords {
+  min-width: 180px;
+  font-variant-numeric: tabular-nums;
 }
 
 #selection-info[hidden] {
@@ -552,4 +566,78 @@ button:disabled:hover {
 #toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* ============================================
+   Tooltip System
+   ============================================ */
+
+[data-tooltip] {
+  position: relative;
+  cursor: help;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  background: var(--fg);
+  color: var(--accent-fg);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 150ms ease-out, transform 150ms ease-out;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* Tooltip arrow */
+[data-tooltip]::before {
+  content: '';
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  border: 6px solid transparent;
+  border-top-color: var(--fg);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 150ms ease-out, transform 150ms ease-out;
+  z-index: 1000;
+}
+
+[data-tooltip]:hover::after,
+[data-tooltip]:hover::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Position overrides for specific areas */
+[data-tooltip-pos="bottom"]::after {
+  bottom: auto;
+  top: 125%;
+}
+
+[data-tooltip-pos="bottom"]::before {
+  bottom: auto;
+  top: 110%;
+  border-top-color: transparent;
+  border-bottom-color: var(--fg);
+}
+
+/* Multiline support - optional but useful */
+[data-tooltip-wide]::after {
+  white-space: normal;
+  width: 200px;
+  text-align: center;
+  line-height: 1.4;
 }
