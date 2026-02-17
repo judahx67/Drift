@@ -55,11 +55,27 @@ body {
   width: 100%;
 }
 
+#app-header .logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+#app-header .brand-logo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  /* Optional: slightly distinct look for the symbol */
+}
+
 #app-header h1 {
   font-size: 1.5rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: lowercase;
+  margin: 0;
 }
 
 #app-header .subtitle {
