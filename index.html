@@ -143,6 +143,13 @@
         <button id="btn-history-forward" type="button" disabled>Forward → <span class="kbd-hint">Ctrl+Y</span></button>
         <button id="btn-flatten" type="button">Flatten</button>
       </div>
+
+      <!-- Storage Info -->
+      <div id="storage-info" hidden>
+        <span id="storage-indicator">💾 0 steps · ~0 MB</span>
+        <button id="btn-clear-history" type="button">Clear History</button>
+        <button id="btn-export-zip" type="button">Save All as ZIP</button>
+      </div>
     </section>
   </main>
 
@@ -150,6 +157,7 @@
     <p>all processing happens in your browser · nothing is uploaded</p>
   </footer>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="pixelsort.js"></script>
   <script src="filters.js"></script>
   <script src="app.js"></script>

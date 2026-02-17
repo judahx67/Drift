@@ -30,6 +30,12 @@
     const btnFlatten = $('#btn-flatten');
     const historyCounter = $('#history-counter');
 
+    // Storage info
+    const storageInfo = $('#storage-info');
+    const storageIndicator = $('#storage-indicator');
+    const btnClearHistory = $('#btn-clear-history');
+    const btnExportZip = $('#btn-export-zip');
+
     // Slider / number pairs
     const threshLowerSlider = $('#threshold-lower');
     const threshLowerNum = $('#threshold-lower-num');
@@ -474,6 +480,24 @@
         } else {
             historyNav.hidden = true;
         }
+
+        // Storage info
+        if (hasImage && state.history.length > 0) {
+            const totalBytes = state.history.reduce((sum, img) => sum + img.data.length, 0);
+            const mb = (totalBytes / (1024 * 1024)).toFixed(1);
+            const WARNING_MB = 50;
+
+            storageInfo.hidden = false;
+            if (totalBytes / (1024 * 1024) > WARNING_MB) {
+                storageInfo.classList.add('warning');
+                storageIndicator.textContent = `\u26a0\ufe0f ${state.history.length} steps \u00b7 ~${mb} MB`;
+            } else {
+                storageInfo.classList.remove('warning');
+                storageIndicator.textContent = `\ud83d\udcbe ${state.history.length} steps \u00b7 ~${mb} MB`;
+            }
+        } else {
+            storageInfo.hidden = true;
+        }
     }
 
     // ============================================
@@ -684,6 +708,64 @@
         saveState();
     });
 
+
+    // ============================================
+    // Storage Management
+    // ============================================
+
+    btnClearHistory.addEventListener('click', () => {
+        if (state.history.length <= 1) return;
+        const current = state.history[state.historyIndex];
+        state.history = [current];
+        state.historyIndex = 0;
+
+        const toast = document.getElementById('toast');
+        toast.textContent = 'History cleared — kept current step';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+
+        updateUI();
+        saveState();
+    });
+
+    btnExportZip.addEventListener('click', async () => {
+        if (state.history.length === 0) return;
+
+        const toast = document.getElementById('toast');
+        toast.textContent = 'Creating ZIP...';
+        toast.classList.add('show');
+
+        try {
+            const zip = new JSZip();
+            const tmpCanvas = document.createElement('canvas');
+            const tmpCtx = tmpCanvas.getContext('2d');
+
+            for (let i = 0; i < state.history.length; i++) {
+                const snap = state.history[i];
+                tmpCanvas.width = snap.width;
+                tmpCanvas.height = snap.height;
+                tmpCtx.putImageData(snap, 0, 0);
+
+                const blob = await new Promise(resolve => tmpCanvas.toBlob(resolve, 'image/png'));
+                const padded = String(i + 1).padStart(3, '0');
+                zip.file(`step_${padded}.png`, blob);
+            }
+
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            const link = document.createElement('a');
+            link.download = 'pixel-sort-history.zip';
+            link.href = URL.createObjectURL(zipBlob);
+            link.click();
+            URL.revokeObjectURL(link.href);
+
+            toast.textContent = `Exported ${state.history.length} steps as ZIP`;
+        } catch (err) {
+            console.error('ZIP export failed:', err);
+            toast.textContent = 'ZIP export failed';
+        }
+
+        setTimeout(() => toast.classList.remove('show'), 2000);
+    });
 
     // ============================================
     // Recalculate selection overlay on resize
