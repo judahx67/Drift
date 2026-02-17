@@ -60,6 +60,7 @@
         selection: null,        // { x, y, w, h } in canvas coords
         history: [],            // Array of ImageData snapshots
         historyIndex: -1,       // Current position in history (-1 = no history)
+        previewBase: null,      // ImageData snapshot before live sort preview
         isDragging: false,
         dragStart: null,        // { x, y } in canvas coords
     };
@@ -279,6 +280,7 @@
             document.querySelectorAll('#sort-mode-group .btn-toggle').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             state.sortMode = btn.dataset.mode;
+            hotApplySort();
         });
     });
 
@@ -288,6 +290,7 @@
             document.querySelectorAll('#direction-group .btn-toggle').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             state.direction = btn.dataset.direction;
+            hotApplySort();
         });
     });
 
@@ -299,12 +302,14 @@
         slider.addEventListener('input', () => {
             numInput.value = slider.value;
             state[stateProp] = parseInt(slider.value, 10);
+            hotApplySort();
         });
         numInput.addEventListener('input', () => {
             const v = Math.max(parseInt(slider.min), Math.min(parseInt(slider.max), parseInt(numInput.value) || 0));
             slider.value = v;
             numInput.value = v;
             state[stateProp] = v;
+            hotApplySort();
         });
     }
 
@@ -549,8 +554,12 @@
         if (w > 2 && h > 2) {
             state.selection = { x, y, w, h };
             showSelectionOverlay(x, y, w, h);
+            // Save previewBase for hot-apply (snapshot of canvas before any sort)
+            state.previewBase = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            hotApplySort(); // immediately apply with current settings
         } else {
             state.selection = null;
+            state.previewBase = null;
             hideSelectionOverlay();
         }
         state.dragStart = null;
@@ -559,6 +568,11 @@
 
     // Clear selection
     btnClearSelection.addEventListener('click', () => {
+        // Restore previewBase if we have one (discard live preview)
+        if (state.previewBase) {
+            ctx.putImageData(state.previewBase, 0, 0);
+            state.previewBase = null;
+        }
         state.selection = null;
         state.dragStart = null;
         hideSelectionOverlay();
@@ -592,45 +606,54 @@
     });
 
     // ============================================
-    // Sort (placeholder — will be wired in commit 4)
+    // Hot-Apply (debounced live sort preview)
+    // ============================================
+
+    let hotApplyTimer = null;
+
+    function hotApplySort() {
+        if (!state.imageLoaded || !state.selection || !state.previewBase) return;
+
+        // Debounce: wait 150ms after last change
+        if (hotApplyTimer) clearTimeout(hotApplyTimer);
+        hotApplyTimer = setTimeout(() => {
+            // Restore from previewBase, then sort
+            const imageData = new ImageData(
+                new Uint8ClampedArray(state.previewBase.data),
+                state.previewBase.width,
+                state.previewBase.height
+            );
+            PixelSort.sort(imageData, state.selection, {
+                mode: state.sortMode,
+                direction: state.direction,
+                thresholdLower: state.thresholdLower,
+                thresholdUpper: state.thresholdUpper,
+                noiseAmount: state.noiseAmount,
+            });
+            ctx.putImageData(imageData, 0, 0);
+        }, 150);
+    }
+
+    // ============================================
+    // Commit (save live preview to history)
     // ============================================
 
     btnSort.addEventListener('click', () => {
         if (!state.imageLoaded || !state.selection) return;
 
-        // Current state is already in history at historyIndex —
-        // we only push the new sorted result after sorting
+        // Commit the current canvas state (which is the live preview) to history
+        pushHistory();
+        state.previewBase = null;
+        state.selection = null;
+        hideSelectionOverlay();
 
-        // Show processing overlay, then sort after a frame so the overlay renders
-        const overlay = document.getElementById('processing-overlay');
-        overlay.classList.add('active');
+        const toast = document.getElementById('toast');
+        toast.textContent = 'Sort committed!';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
 
-        requestAnimationFrame(() => {
-            setTimeout(() => {
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                PixelSort.sort(imageData, state.selection, {
-                    mode: state.sortMode,
-                    direction: state.direction,
-                    thresholdLower: state.thresholdLower,
-                    thresholdUpper: state.thresholdUpper,
-                    noiseAmount: state.noiseAmount,
-                });
-                ctx.putImageData(imageData, 0, 0);
-
-                overlay.classList.remove('active');
-
-                pushHistory(); // save the sorted result
-
-                // Show toast
-                const toast = document.getElementById('toast');
-                toast.textContent = 'Pixels sorted!';
-                toast.classList.add('show');
-                setTimeout(() => toast.classList.remove('show'), 2000);
-
-                updateUI();
-                saveState();
-            }, 50);
-        });
+        updateUI();
+        saveState();
     });
 
     // ============================================
