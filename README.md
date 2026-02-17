@@ -28,6 +28,17 @@ Everything runs in your browser. Nothing is uploaded.
 6. Use **← Back** / **Forward →** to browse iterations
 7. Click **Export** to download the final image
 
+## Deployment
+
+You can host this application for free on services like **Netlify** or **Vercel** with automatic deployment from GitHub:
+
+1. Push this repository to your GitHub account.
+2. Sign in to [Netlify](https://www.netlify.com/).
+3. Click **Add new site** > **Import an existing project**.
+4. Select your **GitHub** repository.
+5. Netlify will automatically detect the settings (thanks to `netlify.toml`).
+6. Click **Deploy**. Any future commits to `main` will automatically trigger a new build.
+
 ## Tech Stack
 
 - **HTML / CSS / JavaScript** — no build tools, no frameworks
