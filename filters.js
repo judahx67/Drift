@@ -117,3 +117,5 @@ const ImageFilters = (function () {
 
     return { apply, sharpen };
 })();
+
+export default ImageFilters;

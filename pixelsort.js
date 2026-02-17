@@ -240,5 +240,6 @@ const PixelSort = (function () {
     // ============================================
 
     return { sort };
-
 })();
+
+export default PixelSort;
