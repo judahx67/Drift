@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixel Sort</title>
+  <meta name="description" content="Client-side pixel sorting tool. Select a region, sort pixels by brightness, hue, saturation, and more.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="app-header">
+    <h1>pixel sort</h1>
+    <p class="subtitle">select a region · sort pixels · export</p>
+  </header>
+
+  <main id="app-main">
+    <!-- Controls Bar -->
+    <section id="controls">
+      <!-- File actions -->
+      <div class="control-group" id="file-controls">
+        <button id="btn-upload" type="button">Upload Image</button>
+        <input type="file" id="file-input" accept="image/*" hidden>
+        <button id="btn-export" type="button" disabled>Export PNG</button>
+      </div>
+
+      <div class="separator"></div>
+
+      <!-- Sort Mode -->
+      <div class="control-group" id="sort-mode-controls">
+        <label class="control-label">Sort By</label>
+        <div class="btn-group" id="sort-mode-group">
+          <button class="btn-toggle active" data-mode="brightness">Brightness</button>
+          <button class="btn-toggle" data-mode="hue">Hue</button>
+          <button class="btn-toggle" data-mode="saturation">Saturation</button>
+          <button class="btn-toggle" data-mode="red">R</button>
+          <button class="btn-toggle" data-mode="green">G</button>
+          <button class="btn-toggle" data-mode="blue">B</button>
+          <button class="btn-toggle" data-mode="gamma">Gamma</button>
+        </div>
+      </div>
+
+      <div class="separator"></div>
+
+      <!-- Direction -->
+      <div class="control-group" id="direction-controls">
+        <label class="control-label">Direction</label>
+        <div class="btn-group" id="direction-group">
+          <button class="btn-toggle active" data-direction="horizontal">Horizontal</button>
+          <button class="btn-toggle" data-direction="vertical">Vertical</button>
+        </div>
+      </div>
+
+      <div class="separator"></div>
+
+      <!-- Thresholds -->
+      <div class="control-group" id="threshold-controls">
+        <label class="control-label">Thresholds</label>
+        <div class="slider-row">
+          <span class="slider-label">Lower</span>
+          <input type="range" id="threshold-lower" min="0" max="255" value="50" class="slider">
+          <input type="number" id="threshold-lower-num" min="0" max="255" value="50" class="num-input">
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Upper</span>
+          <input type="range" id="threshold-upper" min="0" max="255" value="200" class="slider">
+          <input type="number" id="threshold-upper-num" min="0" max="255" value="200" class="num-input">
+        </div>
+      </div>
+
+      <div class="separator"></div>
+
+      <!-- Noise -->
+      <div class="control-group" id="noise-controls">
+        <label class="control-label">Noise</label>
+        <div class="slider-row">
+          <span class="slider-label">Amount</span>
+          <input type="range" id="noise-amount" min="0" max="100" value="0" class="slider">
+          <input type="number" id="noise-amount-num" min="0" max="100" value="0" class="num-input">
+        </div>
+      </div>
+
+      <div class="separator"></div>
+
+      <!-- Actions -->
+      <div class="control-group" id="action-controls">
+        <button id="btn-sort" type="button" class="btn-primary" disabled>Apply Sort</button>
+        <button id="btn-undo" type="button" disabled>Undo</button>
+        <button id="btn-reset" type="button" disabled>Reset</button>
+      </div>
+    </section>
+
+    <!-- Canvas Workspace -->
+    <section id="workspace">
+      <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+        <div id="selection-overlay" hidden></div>
+        <div id="drop-zone">
+          <p>Drop an image here<br>or click <strong>Upload Image</strong></p>
+        </div>
+      </div>
+
+      <!-- Selection info -->
+      <div id="selection-info" hidden>
+        <span id="selection-coords"></span>
+        <button id="btn-clear-selection" type="button">Clear Selection</button>
+      </div>
+    </section>
+  </main>
+
+  <footer id="app-footer">
+    <p>all processing happens in your browser · nothing is uploaded</p>
+  </footer>
+
+  <script src="pixelsort.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
