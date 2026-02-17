@@ -38,6 +38,13 @@
     const noiseSlider = $('#noise-amount');
     const noiseNum = $('#noise-amount-num');
 
+    // Filter controls
+    const filterGroup = $('#filter-group');
+    const filterIntensityRow = $('#filter-intensity-row');
+    const filterIntensitySlider = $('#filter-intensity');
+    const filterIntensityNum = $('#filter-intensity-num');
+    const btnApplyFilter = $('#btn-apply-filter');
+
     // ============================================
     // App State
     // ============================================
@@ -304,6 +311,108 @@
     syncPair(threshLowerSlider, threshLowerNum, 'thresholdLower');
     syncPair(threshUpperSlider, threshUpperNum, 'thresholdUpper');
     syncPair(noiseSlider, noiseNum, 'noiseAmount');
+
+    // Filter intensity sync
+    filterIntensitySlider.addEventListener('input', () => {
+        filterIntensityNum.value = filterIntensitySlider.value;
+    });
+    filterIntensityNum.addEventListener('input', () => {
+        const v = Math.max(-100, Math.min(100, parseInt(filterIntensityNum.value) || 0));
+        filterIntensitySlider.value = v;
+        filterIntensityNum.value = v;
+    });
+
+    // ============================================
+    // Filter Controls
+    // ============================================
+
+    let activeFilter = null;
+
+    // Show/hide intensity slider based on filter type
+    function updateFilterIntensity() {
+        const binaryFilters = ['invert', 'grayscale'];
+        if (!activeFilter || binaryFilters.includes(activeFilter)) {
+            filterIntensityRow.style.display = 'none';
+        } else {
+            filterIntensityRow.style.display = '';
+            // Adjust range for blur
+            if (activeFilter === 'blur') {
+                filterIntensitySlider.min = 0;
+                filterIntensitySlider.max = 20;
+                filterIntensitySlider.value = 3;
+                filterIntensityNum.min = 0;
+                filterIntensityNum.max = 20;
+                filterIntensityNum.value = 3;
+            } else if (activeFilter === 'sharpen') {
+                filterIntensitySlider.min = 0;
+                filterIntensitySlider.max = 100;
+                filterIntensitySlider.value = 50;
+                filterIntensityNum.min = 0;
+                filterIntensityNum.max = 100;
+                filterIntensityNum.value = 50;
+            } else {
+                filterIntensitySlider.min = -100;
+                filterIntensitySlider.max = 100;
+                filterIntensitySlider.value = 50;
+                filterIntensityNum.min = -100;
+                filterIntensityNum.max = 100;
+                filterIntensityNum.value = 50;
+            }
+        }
+    }
+
+    // Toggle filter buttons
+    document.querySelectorAll('#filter-group .btn-toggle').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const filter = btn.dataset.filter;
+            if (activeFilter === filter) {
+                // Deselect
+                btn.classList.remove('active');
+                activeFilter = null;
+            } else {
+                document.querySelectorAll('#filter-group .btn-toggle').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                activeFilter = filter;
+            }
+            updateFilterIntensity();
+            btnApplyFilter.disabled = !activeFilter || !state.imageLoaded;
+        });
+    });
+
+    // Apply selected filter
+    function applyFilter() {
+        if (!state.imageLoaded || !activeFilter) return;
+        const value = parseInt(filterIntensitySlider.value) || 0;
+        ImageFilters.apply(canvas, activeFilter, value);
+        pushHistory();
+
+        const toast = document.getElementById('toast');
+        toast.textContent = `${activeFilter} applied`;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+
+        updateUI();
+        saveState();
+    }
+
+    // Double-click a filter button to apply immediately
+    document.querySelectorAll('#filter-group .btn-toggle').forEach((btn) => {
+        btn.addEventListener('dblclick', () => {
+            activeFilter = btn.dataset.filter;
+            applyFilter();
+        });
+    });
+
+    // Apply filter keyboard shortcut: F key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'f' && !e.ctrlKey && !e.altKey && document.activeElement.tagName !== 'INPUT') {
+            e.preventDefault();
+            applyFilter();
+        }
+    });
+
+    // Apply filter button
+    btnApplyFilter.addEventListener('click', applyFilter);
 
     // ============================================
     // History Management

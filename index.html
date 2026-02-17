@@ -87,6 +87,27 @@
 
       <div class="separator"></div>
 
+      <!-- Filters -->
+      <div class="control-group" id="filter-controls">
+        <label class="control-label">Filter</label>
+        <div class="btn-group" id="filter-group">
+          <button class="btn-toggle" data-filter="brightness">Bright</button>
+          <button class="btn-toggle" data-filter="contrast">Contrast</button>
+          <button class="btn-toggle" data-filter="blur">Blur</button>
+          <button class="btn-toggle" data-filter="sharpen">Sharpen</button>
+          <button class="btn-toggle" data-filter="invert">Invert</button>
+          <button class="btn-toggle" data-filter="grayscale">B&W</button>
+        </div>
+        <div class="slider-row" id="filter-intensity-row" style="display:none">
+          <span class="slider-label">Intensity</span>
+          <input type="range" id="filter-intensity" min="-100" max="100" value="50" class="slider">
+          <input type="number" id="filter-intensity-num" min="-100" max="100" value="50" class="num-input">
+        </div>
+        <button id="btn-apply-filter" type="button" disabled>Apply Filter <span class="kbd-hint">F</span></button>
+      </div>
+
+      <div class="separator"></div>
+
       <!-- Actions -->
       <div class="control-group" id="action-controls">
         <button id="btn-sort" type="button" class="btn-primary" disabled>Apply Sort <span
@@ -130,6 +151,7 @@
   </footer>
 
   <script src="pixelsort.js"></script>
+  <script src="filters.js"></script>
   <script src="app.js"></script>
   <div id="toast"></div>
 </body>
