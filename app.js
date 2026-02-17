@@ -17,6 +17,7 @@ const btnExport = $('#btn-export');
 const btnSort = $('#btn-sort');
 const btnReset = $('#btn-reset');
 const btnClearSelection = $('#btn-clear-selection');
+const btnSelectAll = $('#btn-select-all');
 const selectionOverlay = $('#selection-overlay');
 const selectionInfo = $('#selection-info');
 const selectionCoords = $('#selection-coords');
@@ -537,45 +538,69 @@ function getCanvasCoords(e) {
     };
 }
 
-canvas.addEventListener('mousedown', (e) => {
+// Bind mousedown to container to allow starting drag from outside
+canvasContainer.addEventListener('mousedown', (e) => {
     if (!state.imageLoaded) return;
+    // Prevent validating selection if clicking controls/buttons inside container
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+
     const coords = getCanvasCoords(e);
     state.isDragging = true;
     state.dragStart = coords;
+
+    // Clear previous selection/preview on new drag start
+    if (state.previewBase) {
+        ctx.putImageData(state.previewBase, 0, 0);
+        state.previewBase = null;
+    }
     state.selection = null;
     hideSelectionOverlay();
 });
 
-canvas.addEventListener('mousemove', (e) => {
+// Bind move/up to window to handle dragging off-screen/outside container
+window.addEventListener('mousemove', (e) => {
     if (!state.isDragging || !state.dragStart) return;
     const coords = getCanvasCoords(e);
-    const x = Math.min(state.dragStart.x, coords.x);
-    const y = Math.min(state.dragStart.y, coords.y);
-    const w = Math.abs(coords.x - state.dragStart.x);
-    const h = Math.abs(coords.y - state.dragStart.y);
 
-    // Clamp to canvas bounds
-    const cx = Math.max(0, x);
-    const cy = Math.max(0, y);
-    const cw = Math.min(canvas.width - cx, w);
-    const ch = Math.min(canvas.height - cy, h);
+    // Calculate raw rectangle
+    let x = Math.min(state.dragStart.x, coords.x);
+    let y = Math.min(state.dragStart.y, coords.y);
+    let w = Math.abs(coords.x - state.dragStart.x);
+    let h = Math.abs(coords.y - state.dragStart.y);
 
-    showSelectionOverlay(cx, cy, cw, ch);
+    // Clamp to canvas bounds for display
+    const x1 = Math.max(0, Math.min(canvas.width, x));
+    const y1 = Math.max(0, Math.min(canvas.height, y));
+    const x2 = Math.max(0, Math.min(canvas.width, x + w));
+    const y2 = Math.max(0, Math.min(canvas.height, y + h));
+
+    showSelectionOverlay(x1, y1, x2 - x1, y2 - y1);
 });
 
-canvas.addEventListener('mouseup', (e) => {
+window.addEventListener('mouseup', (e) => {
     if (!state.isDragging || !state.dragStart) return;
     state.isDragging = false;
+
     const coords = getCanvasCoords(e);
 
-    const x = Math.max(0, Math.min(state.dragStart.x, coords.x));
-    const y = Math.max(0, Math.min(state.dragStart.y, coords.y));
-    const w = Math.min(canvas.width - x, Math.abs(coords.x - state.dragStart.x));
-    const h = Math.min(canvas.height - y, Math.abs(coords.y - state.dragStart.y));
+    // Calculate raw rectangle
+    let rawX = Math.min(state.dragStart.x, coords.x);
+    let rawY = Math.min(state.dragStart.y, coords.y);
+    let rawW = Math.abs(coords.x - state.dragStart.x);
+    let rawH = Math.abs(coords.y - state.dragStart.y);
+
+    // Clamp final selection to canvas
+    const x1 = Math.max(0, Math.min(canvas.width, rawX));
+    const y1 = Math.max(0, Math.min(canvas.height, rawY));
+    const x2 = Math.max(0, Math.min(canvas.width, rawX + rawW));
+    const y2 = Math.max(0, Math.min(canvas.height, rawY + rawH));
+
+    const w = x2 - x1;
+    const h = y2 - y1;
 
     if (w > 2 && h > 2) {
-        state.selection = { x, y, w, h };
-        showSelectionOverlay(x, y, w, h);
+        state.selection = { x: x1, y: y1, w, h };
+        showSelectionOverlay(x1, y1, w, h);
         // Save previewBase for hot-apply (snapshot of canvas before any sort)
         state.previewBase = ctx.getImageData(0, 0, canvas.width, canvas.height);
         hotApplySort(); // immediately apply with current settings
@@ -583,8 +608,34 @@ canvas.addEventListener('mouseup', (e) => {
         state.selection = null;
         state.previewBase = null;
         hideSelectionOverlay();
+
+        // If we just clicked without dragging, restore image (clear selection visual)
+        if (state.previewBase) {
+            ctx.putImageData(state.previewBase, 0, 0);
+            state.previewBase = null;
+        }
     }
     state.dragStart = null;
+    updateUI();
+});
+
+// Select All
+btnSelectAll.addEventListener('click', () => {
+    if (!state.imageLoaded) return;
+
+    // Restore any previous preview first
+    if (state.previewBase) {
+        ctx.putImageData(state.previewBase, 0, 0);
+    }
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    state.selection = { x: 0, y: 0, w, h };
+    showSelectionOverlay(0, 0, w, h);
+
+    state.previewBase = ctx.getImageData(0, 0, w, h);
+    hotApplySort();
     updateUI();
 });
 

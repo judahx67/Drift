@@ -10,7 +10,7 @@ Everything runs in your browser. Nothing is uploaded.
 |---------|-------------|
 | **7 Sort Modes** | Brightness, Hue, Saturation, Red, Green, Blue, Gamma |
 | **Hot-Apply** | Sorting updates live as you drag sliders or change modes — no "Apply" button needed |
-| **Region Selection** | Click-drag on the canvas to select the area to sort |
+| **Region Selection** | Click-drag on the canvas (even from outside) or click **Select All** for full image |
 | **Iteration History** | ← Back / Forward → through every sort step, with a Flatten button to collapse |
 | **Basic Filters** | Brightness, Contrast, Blur, Sharpen, Invert, Grayscale — applied via Canvas 2D |
 | **Storage Management** | Tracks history memory usage, warns at 50 MB, offers Clear History and ZIP export |
@@ -20,13 +20,15 @@ Everything runs in your browser. Nothing is uploaded.
 
 ## Usage
 
-1. Open `index.html` in any modern browser
-2. Click **Upload** (or drag-drop) to load an image
-3. Draw a selection rectangle on the canvas
-4. Adjust sort mode, direction, thresholds, and noise — the sort previews live
-5. Press **Commit** (or `Enter`) to save the result to history
-6. Use **← Back** / **Forward →** to browse iterations
-7. Click **Export** to download the final image
+1. **Development**: Run `npm run dev` to start the local server.
+2. **Production**: Run `npm run build` to generate the `dist` folder.
+3. **App**:
+   - Click **Upload** (or drag-drop) to load an image.
+   - Draw a selection rectangle on the canvas or click **Select All**.
+   - Adjust sort mode, direction, thresholds, and noise — the sort previews live.
+   - Press **Commit** (or `Enter`) to save the result.
+   - Use **← Back** / **Forward →** to browse iterations.
+   - Click **Export** to download the final image.
 
 ## Deployment
 
@@ -41,10 +43,11 @@ You can host this application for free on services like **Netlify** or **Vercel*
 
 ## Tech Stack
 
-- **HTML / CSS / JavaScript** — no build tools, no frameworks
+- **HTML / CSS / JavaScript** — ES Modules
+- **Vite** — Build tool and dev server
 - **Canvas 2D API** — pixel manipulation and CSS filters
 - **IndexedDB** — client-side state persistence
-- **JSZip** (CDN) — batch history export as ZIP
+- **JSZip** — batch history export as ZIP
 
 ## File Structure
 
