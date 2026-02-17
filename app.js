@@ -618,18 +618,41 @@
     });
 
     // ============================================
-    // Export
+    // Export Helpers
     // ============================================
 
-    btnExport.addEventListener('click', () => {
-        if (!state.imageLoaded) return;
+    function downloadFile(blob, filename) {
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.download = 'pixel-sorted.png';
-        link.href = canvas.toDataURL('image/png');
+        link.href = url;
+        link.download = filename;
         link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
-        setTimeout(() => document.body.removeChild(link), 1000);
+
+        // Use a longer timeout for cleanup to ensure the browser has started the download
+        setTimeout(() => {
+            if (document.body.contains(link)) {
+                document.body.removeChild(link);
+            }
+            URL.revokeObjectURL(url);
+        }, 2000);
+    }
+
+    // ============================================
+    // Export
+    // ============================================
+
+    btnExport.addEventListener('click', async () => {
+        if (!state.imageLoaded) return;
+        canvas.toBlob((blob) => {
+            if (blob) {
+                downloadFile(blob, 'pixel-sorted.png');
+                showToast('Image exported!');
+            } else {
+                showToast('Export failed (canvas error)');
+            }
+        }, 'image/png');
     });
 
     // ============================================
@@ -739,6 +762,10 @@
         toast.classList.add('show');
 
         try {
+            if (typeof JSZip === 'undefined') {
+                throw new Error('JSZip library not loaded. Check your internet connection.');
+            }
+
             const zip = new JSZip();
             const tmpCanvas = document.createElement('canvas');
             const tmpCtx = tmpCanvas.getContext('2d');
@@ -749,27 +776,29 @@
                 tmpCanvas.height = snap.height;
                 tmpCtx.putImageData(snap, 0, 0);
 
-                const blob = await new Promise(resolve => tmpCanvas.toBlob(resolve, 'image/png'));
+                const blob = await new Promise(resolve => {
+                    tmpCanvas.toBlob((b) => resolve(b), 'image/png');
+                });
+
+                if (!blob) continue;
+
                 const padded = String(i + 1).padStart(3, '0');
                 zip.file(`step_${padded}.png`, blob);
             }
 
-            const zipBlob = await zip.generateAsync({ type: 'blob' });
-            const link = document.createElement('a');
-            link.download = 'pixel-sort-history.zip';
-            link.href = URL.createObjectURL(zipBlob);
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            link.click();
-            setTimeout(() => {
-                document.body.removeChild(link);
-                URL.revokeObjectURL(link.href);
-            }, 1000);
+            // Generate ZIP as uint8array then create Blob manually for better compatibility
+            const content = await zip.generateAsync({
+                type: 'uint8array',
+                compression: 'STORE' // No compression for faster local processing
+            });
+            const zipBlob = new Blob([content], { type: 'application/zip' });
+
+            downloadFile(zipBlob, 'pixel-sort-history.zip');
 
             toast.textContent = `Exported ${state.history.length} steps as ZIP`;
         } catch (err) {
             console.error('ZIP export failed:', err);
-            toast.textContent = 'ZIP export failed';
+            toast.textContent = err.message || 'ZIP export failed';
         }
 
         setTimeout(() => toast.classList.remove('show'), 2000);
