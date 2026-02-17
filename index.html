@@ -1,15 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pixel Sort</title>
-  <meta name="description" content="Client-side pixel sorting tool. Select a region, sort pixels by brightness, hue, saturation, and more.">
+  <meta name="description"
+    content="Client-side pixel sorting tool. Select a region, sort pixels by brightness, hue, saturation, and more.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
   <header id="app-header">
     <h1>pixel sort</h1>
@@ -21,9 +24,9 @@
     <section id="controls">
       <!-- File actions -->
       <div class="control-group" id="file-controls">
-        <button id="btn-upload" type="button">Upload Image</button>
+        <button id="btn-upload" type="button">Upload Image <span class="kbd-hint">Ctrl+O</span></button>
         <input type="file" id="file-input" accept="image/*" hidden>
-        <button id="btn-export" type="button" disabled>Export PNG</button>
+        <button id="btn-export" type="button" disabled>Export PNG <span class="kbd-hint">Ctrl+S</span></button>
       </div>
 
       <div class="separator"></div>
@@ -86,8 +89,9 @@
 
       <!-- Actions -->
       <div class="control-group" id="action-controls">
-        <button id="btn-sort" type="button" class="btn-primary" disabled>Apply Sort</button>
-        <button id="btn-undo" type="button" disabled>Undo</button>
+        <button id="btn-sort" type="button" class="btn-primary" disabled>Apply Sort <span
+            class="kbd-hint">Enter</span></button>
+        <button id="btn-undo" type="button" disabled>Undo <span class="kbd-hint">Ctrl+Z</span></button>
         <button id="btn-reset" type="button" disabled>Reset</button>
       </div>
     </section>
@@ -97,6 +101,10 @@
       <div id="canvas-container">
         <canvas id="canvas"></canvas>
         <div id="selection-overlay" hidden></div>
+        <div id="processing-overlay">
+          <div class="spinner"></div>
+          <span>Sorting pixels…</span>
+        </div>
         <div id="drop-zone">
           <p>Drop an image here<br>or click <strong>Upload Image</strong></p>
         </div>
@@ -116,5 +124,7 @@
 
   <script src="pixelsort.js"></script>
   <script src="app.js"></script>
+  <div id="toast"></div>
 </body>
+
 </html>

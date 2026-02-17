@@ -450,19 +450,34 @@
         // Save current state for undo
         state.undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
 
-        // Get full image data, sort the selected region, write it back
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        PixelSort.sort(imageData, state.selection, {
-            mode: state.sortMode,
-            direction: state.direction,
-            thresholdLower: state.thresholdLower,
-            thresholdUpper: state.thresholdUpper,
-            noiseAmount: state.noiseAmount,
-        });
-        ctx.putImageData(imageData, 0, 0);
+        // Show processing overlay, then sort after a frame so the overlay renders
+        const overlay = document.getElementById('processing-overlay');
+        overlay.classList.add('active');
 
-        updateUI();
-        saveState();
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                PixelSort.sort(imageData, state.selection, {
+                    mode: state.sortMode,
+                    direction: state.direction,
+                    thresholdLower: state.thresholdLower,
+                    thresholdUpper: state.thresholdUpper,
+                    noiseAmount: state.noiseAmount,
+                });
+                ctx.putImageData(imageData, 0, 0);
+
+                overlay.classList.remove('active');
+
+                // Show toast
+                const toast = document.getElementById('toast');
+                toast.textContent = 'Pixels sorted!';
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2000);
+
+                updateUI();
+                saveState();
+            }, 50);
+        });
     });
 
     // ============================================
@@ -487,6 +502,52 @@
         if (state.selection) {
             const s = state.selection;
             showSelectionOverlay(s.x, s.y, s.w, s.h);
+        }
+    });
+
+    //
+
+    // ============================================
+    // Keyboard Shortcuts
+    // ============================================
+
+    document.addEventListener('keydown', (e) => {
+        // Ctrl+O — Upload
+        if (e.ctrlKey && e.key === 'o') {
+            e.preventDefault();
+            fileInput.click();
+        }
+        // Ctrl+S — Export
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            if (state.imageLoaded) {
+                btnExport.click();
+                showToast('Image exported!');
+            }
+        }
+        // Ctrl+Z — Undo
+        if (e.ctrlKey && e.key === 'z') {
+            e.preventDefault();
+            btnUndo.click();
+            if (state.undoStack.length >= 0) {
+                showToast('Undone');
+            }
+        }
+        // Enter — Apply Sort
+        if (e.key === 'Enter' && !e.ctrlKey && !e.altKey) {
+            // Don't fire if focused on an input
+            if (document.activeElement.tagName === 'INPUT') return;
+            e.preventDefault();
+            if (!btnSort.disabled) {
+                btnSort.click();
+            }
+        }
+        // Escape — Clear selection
+        if (e.key === 'Escape') {
+            state.selection = null;
+            state.dragStart = null;
+            hideSelectionOverlay();
+            updateUI();
         }
     });
 

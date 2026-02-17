@@ -21,7 +21,9 @@
    Reset & Base
    ============================================ */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -411,4 +413,89 @@ button:disabled:hover {
   .slider {
     width: 80px;
   }
+}
+
+/* ============================================
+   Processing Overlay
+   ============================================ */
+
+#processing-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(245, 245, 240, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition);
+}
+
+#processing-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#processing-overlay .spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-light);
+  border-top-color: var(--fg);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#processing-overlay span {
+  margin-left: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--fg-muted);
+  font-weight: 500;
+}
+
+/* ============================================
+   Keyboard Shortcut Hints
+   ============================================ */
+
+.kbd-hint {
+  font-size: 0.65rem;
+  color: var(--fg-muted);
+  border: 1px solid var(--border-light);
+  border-radius: 2px;
+  padding: 0.1rem 0.3rem;
+  margin-left: 0.3rem;
+  font-weight: 400;
+  vertical-align: middle;
+}
+
+/* ============================================
+   Toast Notification
+   ============================================ */
+
+#toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(1rem);
+  background: var(--fg);
+  color: var(--accent-fg);
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+  z-index: 100;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
