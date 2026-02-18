@@ -199,6 +199,27 @@ button:disabled:hover {
   color: var(--accent-fg);
 }
 
+.checkpoint-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  cursor: pointer;
+  user-select: none;
+  margin-right: 0.5rem;
+}
+
+.checkbox-label input {
+  cursor: pointer;
+}
+
 /* Toggle button group */
 .btn-group {
   display: flex;
@@ -327,7 +348,7 @@ button:disabled:hover {
   display: block;
   /* Ensure canvas scales down to fit container */
   max-width: 100%;
-  max-height: 55vh;
+  max-height: 50vh;
   /* Constrain vertical height for better UX on 1080p screens */
   width: auto;
   height: auto;
@@ -832,10 +853,23 @@ button:disabled:hover {
   #action-controls {
     width: 100%;
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
     gap: 0.5rem;
   }
 
+  .checkbox-label {
+    width: 100%;
+    justify-content: center;
+    padding: 0.25rem;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    margin: 0;
+  }
+
   #action-controls button {
-    flex: 1;
+    flex: 1 1 40%;
+    /* allow buttons to share a row */
   }
 }

@@ -18,6 +18,8 @@ const btnSort = $('#btn-sort');
 const btnReset = $('#btn-reset');
 const btnClearSelection = $('#btn-clear-selection');
 const btnSelectAll = $('#btn-select-all');
+const chkAutoUpdate = $('#chk-auto-update');
+const btnPreview = $('#btn-preview');
 const selectionOverlay = $('#selection-overlay');
 const selectionInfo = $('#selection-info');
 const selectionCoords = $('#selection-coords');
@@ -717,30 +719,69 @@ btnExport.addEventListener('click', async () => {
 // Hot-Apply (debounced live sort preview)
 // ============================================
 
+
+
 let hotApplyTimer = null;
 
-function hotApplySort() {
+function hotApplySort(force = false) {
     if (!state.imageLoaded || !state.selection || !state.previewBase) return;
 
-    // Debounce: wait 150ms after last change
+    const autoUpdate = chkAutoUpdate.checked;
+
+    // Toggle manual preview button
+    btnPreview.style.display = autoUpdate ? 'none' : 'inline-block';
+
+    // If auto-update is off and not forced, stop here (skip sort)
+    if (!autoUpdate && !force) return;
+
+    // Clear existing timer
     if (hotApplyTimer) clearTimeout(hotApplyTimer);
+
+    // If strictly manual (forced), run immediately without debounce
+    if (force) {
+        performSort();
+        return;
+    }
+
+    // Otherwise, debounce the auto-update
     hotApplyTimer = setTimeout(() => {
-        // Restore from previewBase, then sort
-        const imageData = new ImageData(
-            new Uint8ClampedArray(state.previewBase.data),
-            state.previewBase.width,
-            state.previewBase.height
-        );
-        PixelSort.sort(imageData, state.selection, {
-            mode: state.sortMode,
-            direction: state.direction,
-            thresholdLower: state.thresholdLower,
-            thresholdUpper: state.thresholdUpper,
-            noiseAmount: state.noiseAmount,
-        });
-        ctx.putImageData(imageData, 0, 0);
+        performSort();
     }, 150);
 }
+
+function performSort() {
+    // Restore from previewBase, then sort
+    const imageData = new ImageData(
+        new Uint8ClampedArray(state.previewBase.data),
+        state.previewBase.width,
+        state.previewBase.height
+    );
+
+    const sortParams = {
+        mode: state.sortMode,
+        direction: state.direction,
+        thresholdLower: state.thresholdLower,
+        thresholdUpper: state.thresholdUpper,
+        noiseAmount: state.noiseAmount,
+    };
+
+    // Use a Web Worker or async if possible? For now, sync is fine but keep UI responsive
+    // Using simple requestAnimationFrame to allow UI to breathe if needed? 
+    // Actual sort is synchronous in current implementation.
+
+    PixelSort.sort(imageData, state.selection, sortParams);
+    ctx.putImageData(imageData, 0, 0);
+}
+
+// Checkbox Listener
+chkAutoUpdate.addEventListener('change', () => {
+    const isChecked = chkAutoUpdate.checked;
+    btnPreview.style.display = isChecked ? 'none' : 'inline-block';
+    if (isChecked) hotApplySort(true); // Immediate update when turning ON
+});
+
+// Manual Preview Listener
+btnPreview.addEventListener('click', () => hotApplySort(true));
 
 // ============================================
 // Commit (save live preview to history)
