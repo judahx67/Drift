@@ -129,6 +129,11 @@
 
       <!-- Actions -->
       <div class="control-group" id="action-controls">
+        <label class="checkbox-label" data-tooltip="Disable for large images to improve performance"
+          data-tooltip-pos="bottom">
+          <input type="checkbox" id="chk-auto-update" checked> Auto-Preview
+        </label>
+        <button id="btn-preview" type="button" class="btn-secondary" style="display:none">Update Preview</button>
         <button id="btn-sort" type="button" class="btn-primary"
           data-tooltip="Permanently apply current preview and save to history" disabled>Commit <span
             class="kbd-hint">Enter</span></button>
