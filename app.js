@@ -20,6 +20,7 @@ const btnClearSelection = $('#btn-clear-selection');
 const btnSelectAll = $('#btn-select-all');
 const chkAutoUpdate = $('#chk-auto-update');
 const btnPreview = $('#btn-preview');
+const chkLassoMode = $('#chk-lasso-mode');
 const selectionOverlay = $('#selection-overlay');
 const selectionInfo = $('#selection-info');
 const selectionCoords = $('#selection-coords');
@@ -70,6 +71,7 @@ const state = {
     previewBase: null,      // ImageData snapshot before live sort preview
     isDragging: false,
     dragStart: null,        // { x, y } in canvas coords
+    selectionPoints: [],    // Array of {x, y} for lasso mode
 };
 
 // ============================================
@@ -549,10 +551,57 @@ function getCanvasCoords(e) {
     };
 }
 
+// Helper to get bounding box of a polygon
+function getPolygonBoundingBox(points) {
+    if (points.length === 0) return { x: 0, y: 0, w: 0, h: 0 };
+    let minX = points[0].x, maxX = points[0].x;
+    let minY = points[0].y, maxY = points[0].y;
+    for (const p of points) {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+    }
+    return {
+        x: minX,
+        y: minY,
+        w: maxX - minX,
+        h: maxY - minY
+    };
+}
+
+// Draw the custom lasso polygon on the canvas (restoring from previewBase first)
+// Note: We don't use the DOM #selection-overlay for the polygon, we draw it directly on the canvas.
+// The DOM overlay will still be positioned for the bounding box, but hidden (so we don't have conflicting visuals).
+function drawLassoPreview() {
+    if (!state.previewBase) return;
+
+    // 1. Restore the image
+    ctx.putImageData(state.previewBase, 0, 0);
+
+    // 2. Draw the polygon path
+    if (state.selectionPoints.length > 1) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(state.selectionPoints[0].x, state.selectionPoints[0].y);
+        for (let i = 1; i < state.selectionPoints.length; i++) {
+            ctx.lineTo(state.selectionPoints[i].x, state.selectionPoints[i].y);
+        }
+        // If not dragging anymore, close the path
+        if (!state.isDragging) {
+            ctx.closePath();
+        }
+        ctx.strokeStyle = '#ff3333';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]); // Dashed line to signify selection
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
 // Bind mousedown to container to allow starting drag from outside
 canvasContainer.addEventListener('mousedown', (e) => {
     if (!state.imageLoaded) return;
-    // Prevent validating selection if clicking controls/buttons inside container
     if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
 
     const coords = getCanvasCoords(e);
@@ -562,10 +611,20 @@ canvasContainer.addEventListener('mousedown', (e) => {
     // Clear previous selection/preview on new drag start
     if (state.previewBase) {
         ctx.putImageData(state.previewBase, 0, 0);
-        state.previewBase = null;
+    } else {
+        // Save the clean canvas state before drawing lasso lines
+        state.previewBase = ctx.getImageData(0, 0, canvas.width, canvas.height);
     }
+
     state.selection = null;
     hideSelectionOverlay();
+
+    if (chkLassoMode.checked) {
+        state.selectionPoints = [coords];
+        drawLassoPreview();
+    } else {
+        state.selectionPoints = [];
+    }
 });
 
 // Bind move/up to window to handle dragging off-screen/outside container
@@ -573,60 +632,90 @@ window.addEventListener('mousemove', (e) => {
     if (!state.isDragging || !state.dragStart) return;
     const coords = getCanvasCoords(e);
 
-    // Calculate raw rectangle
-    let x = Math.min(state.dragStart.x, coords.x);
-    let y = Math.min(state.dragStart.y, coords.y);
-    let w = Math.abs(coords.x - state.dragStart.x);
-    let h = Math.abs(coords.y - state.dragStart.y);
+    if (chkLassoMode.checked) {
+        // Add point to polygon string
+        state.selectionPoints.push(coords);
+        drawLassoPreview();
+    } else {
+        // Rectangular tracking
+        let x = Math.min(state.dragStart.x, coords.x);
+        let y = Math.min(state.dragStart.y, coords.y);
+        let w = Math.abs(coords.x - state.dragStart.x);
+        let h = Math.abs(coords.y - state.dragStart.y);
 
-    // Clamp to canvas bounds for display
-    const x1 = Math.max(0, Math.min(canvas.width, x));
-    const y1 = Math.max(0, Math.min(canvas.height, y));
-    const x2 = Math.max(0, Math.min(canvas.width, x + w));
-    const y2 = Math.max(0, Math.min(canvas.height, y + h));
+        const x1 = Math.max(0, Math.min(canvas.width, x));
+        const y1 = Math.max(0, Math.min(canvas.height, y));
+        const x2 = Math.max(0, Math.min(canvas.width, x + w));
+        const y2 = Math.max(0, Math.min(canvas.height, y + h));
 
-    showSelectionOverlay(x1, y1, x2 - x1, y2 - y1);
+        showSelectionOverlay(x1, y1, x2 - x1, y2 - y1);
+    }
 });
 
 window.addEventListener('mouseup', (e) => {
     if (!state.isDragging || !state.dragStart) return;
     state.isDragging = false;
-
     const coords = getCanvasCoords(e);
 
-    // Calculate raw rectangle
-    let rawX = Math.min(state.dragStart.x, coords.x);
-    let rawY = Math.min(state.dragStart.y, coords.y);
-    let rawW = Math.abs(coords.x - state.dragStart.x);
-    let rawH = Math.abs(coords.y - state.dragStart.y);
+    if (chkLassoMode.checked) {
+        state.selectionPoints.push(coords);
+        drawLassoPreview(); // Redraw with closed path
 
-    // Clamp final selection to canvas
-    const x1 = Math.max(0, Math.min(canvas.width, rawX));
-    const y1 = Math.max(0, Math.min(canvas.height, rawY));
-    const x2 = Math.max(0, Math.min(canvas.width, rawX + rawW));
-    const y2 = Math.max(0, Math.min(canvas.height, rawY + rawH));
-
-    const w = x2 - x1;
-    const h = y2 - y1;
-
-    if (w > 2 && h > 2) {
-        state.selection = { x: x1, y: y1, w, h };
-        showSelectionOverlay(x1, y1, w, h);
-        // Save previewBase for hot-apply (snapshot of canvas before any sort)
-        state.previewBase = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        hotApplySort(); // immediately apply with current settings
-    } else {
-        state.selection = null;
-        state.previewBase = null;
-        hideSelectionOverlay();
-
-        // If we just clicked without dragging, restore image (clear selection visual)
-        if (state.previewBase) {
+        const bbox = getPolygonBoundingBox(state.selectionPoints);
+        if (bbox.w > 2 && bbox.h > 2) {
+            state.selection = bbox;
+            // Note: we're passing the BOUNDING BOX to state.selection.
+            // The PixelSort engine will need to know about state.selectionPoints to do the mask check!
+            hotApplySort();
+        } else {
+            state.selection = null;
+            state.selectionPoints = [];
             ctx.putImageData(state.previewBase, 0, 0);
             state.previewBase = null;
         }
+    } else {
+        let rawX = Math.min(state.dragStart.x, coords.x);
+        let rawY = Math.min(state.dragStart.y, coords.y);
+        let rawW = Math.abs(coords.x - state.dragStart.x);
+        let rawH = Math.abs(coords.y - state.dragStart.y);
+
+        const x1 = Math.max(0, Math.min(canvas.width, rawX));
+        const y1 = Math.max(0, Math.min(canvas.height, rawY));
+        const x2 = Math.max(0, Math.min(canvas.width, rawX + rawW));
+        const y2 = Math.max(0, Math.min(canvas.height, rawY + rawH));
+
+        const w = x2 - x1;
+        const h = y2 - y1;
+
+        if (w > 2 && h > 2) {
+            state.selection = { x: x1, y: y1, w, h };
+            showSelectionOverlay(x1, y1, w, h);
+            // Already saved previewBase in mousedown
+            hotApplySort();
+        } else {
+            state.selection = null;
+            hideSelectionOverlay();
+            if (state.previewBase) {
+                ctx.putImageData(state.previewBase, 0, 0);
+                state.previewBase = null;
+            }
+        }
     }
+
     state.dragStart = null;
+    updateUI();
+});
+
+// Clear selection when toggling lasso mode
+chkLassoMode.addEventListener('change', () => {
+    if (state.previewBase) {
+        ctx.putImageData(state.previewBase, 0, 0);
+        state.previewBase = null;
+    }
+    state.selection = null;
+    state.selectionPoints = [];
+    state.dragStart = null;
+    hideSelectionOverlay();
     updateUI();
 });
 
@@ -763,6 +852,7 @@ function performSort() {
         thresholdLower: state.thresholdLower,
         thresholdUpper: state.thresholdUpper,
         noiseAmount: state.noiseAmount,
+        selectionPoints: chkLassoMode.checked ? state.selectionPoints : null
     };
 
     // Use a Web Worker or async if possible? For now, sync is fine but keep UI responsive

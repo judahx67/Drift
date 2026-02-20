@@ -399,13 +399,6 @@ button:disabled:hover {
   z-index: 10;
 }
 
-#selection-overlay::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 51, 51, 0.08);
-}
-
 /* Selection info bar */
 #selection-info {
   display: flex;

@@ -62,33 +62,64 @@ const PixelSort = (function () {
     }
 
     // ============================================
+    // Polygon Mask Geometry
+    // ============================================
+
+    /**
+     * Ray-Casting algorithm to check if a point (x, y) is inside a polygon defined by points.
+     */
+    function isPointInPolygon(point, vs) {
+        if (!vs || vs.length < 3) return true; // Treat as a standard rectangle if no polygon
+
+        const x = point.x, y = point.y;
+        let inside = false;
+
+        for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+            const xi = vs[i].x, yi = vs[i].y;
+            const xj = vs[j].x, yj = vs[j].y;
+
+            const intersect = ((yi > y) !== (yj > y))
+                && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+            if (intersect) inside = !inside;
+        }
+        return inside;
+    }
+
+    // ============================================
     // Interval Detection
     // ============================================
 
     /**
-     * Split a line of pixels into intervals based on threshold.
-     * Pixels whose sort-value is between lower and upper are "in" the interval.
-     * Consecutive "in" pixels form one interval.
+     * Split a line of pixels into intervals based on threshold and polygon mask.
      *
-     * @param {Array} pixels - Array of { r, g, b, a, idx }
-     * @param {string} mode - Sort mode
-     * @param {number} lower - Lower threshold (0-255)
-     * @param {number} upper - Upper threshold (0-255)
+     * @param {Array} pixels - Array of { x, y, r, g, b, a, idx... }
+     * @param {Object} options - { mode, thresholdLower, thresholdUpper, selectionPoints }
      * @returns {Array} Array of intervals, each an array of pixel objects
      */
-    function detectIntervals(pixels, mode, lower, upper) {
+    function detectIntervals(pixels, options) {
+        const { mode, thresholdLower: lower, thresholdUpper: upper, selectionPoints } = options;
         const intervals = [];
         let current = [];
 
+        const hasPolygon = selectionPoints && selectionPoints.length > 2;
+
         for (let i = 0; i < pixels.length; i++) {
             const p = pixels[i];
+
+            // 1. Check if inside polygon mask (if provided)
+            let inMask = true;
+            if (hasPolygon) {
+                inMask = isPointInPolygon({ x: p.x, y: p.y }, selectionPoints);
+            }
+
+            // 2. Check threshold
             const val = getPixelValue(p.r, p.g, p.b, mode);
-            // Normalize to 0-255 range for modes that aren't naturally in that range
             let normVal = val;
             if (mode === 'hue') normVal = (val / 360) * 255;
             if (mode === 'saturation') normVal = (val / 100) * 255;
 
-            if (normVal >= lower && normVal <= upper) {
+            // Pixel is in interval ONLY if inside Mask AND within Threshold bounds
+            if (inMask && normVal >= lower && normVal <= upper) {
                 current.push(p);
             } else {
                 if (current.length > 1) {
@@ -145,11 +176,11 @@ const PixelSort = (function () {
      *
      * @param {ImageData} imageData - The full image data
      * @param {Object} selection - { x, y, w, h } in pixel coordinates
-     * @param {Object} options - { mode, direction, thresholdLower, thresholdUpper, noiseAmount }
+     * @param {Object} options - { mode, direction, thresholdLower, thresholdUpper, noiseAmount, selectionPoints }
      * @returns {ImageData} Modified image data (mutated in place)
      */
     function sort(imageData, selection, options) {
-        const { mode, direction, thresholdLower, thresholdUpper, noiseAmount } = options;
+        const { mode, direction, noiseAmount } = options;
         const data = imageData.data;
         const imgWidth = imageData.width;
         const { x, y, w, h } = selection;
@@ -162,6 +193,8 @@ const PixelSort = (function () {
                 for (let col = x; col < x + w; col++) {
                     const idx = (row * imgWidth + col) * 4;
                     pixels.push({
+                        x: col,
+                        y: row,
                         r: data[idx],
                         g: data[idx + 1],
                         b: data[idx + 2],
@@ -171,7 +204,7 @@ const PixelSort = (function () {
                 }
 
                 // Detect intervals and sort each one
-                const intervals = detectIntervals(pixels, mode, thresholdLower, thresholdUpper);
+                const intervals = detectIntervals(pixels, options);
 
                 for (const interval of intervals) {
                     // Remember the original positions
@@ -202,6 +235,8 @@ const PixelSort = (function () {
                 for (let row = y; row < y + h; row++) {
                     const idx = (row * imgWidth + col) * 4;
                     pixels.push({
+                        x: col,
+                        y: row,
                         r: data[idx],
                         g: data[idx + 1],
                         b: data[idx + 2],
@@ -210,7 +245,7 @@ const PixelSort = (function () {
                     });
                 }
 
-                const intervals = detectIntervals(pixels, mode, thresholdLower, thresholdUpper);
+                const intervals = detectIntervals(pixels, options);
 
                 for (const interval of intervals) {
                     const positions = interval.map(p => p.origRow);
