@@ -185,6 +185,12 @@ const PixelSort = (function () {
         const imgWidth = imageData.width;
         const { x, y, w, h } = selection;
 
+        // Cache original data for feather blending later
+        let originalData = null;
+        if (options.feather && options.featherRadius > 0) {
+            originalData = new Uint8ClampedArray(data);
+        }
+
         if (direction === 'horizontal') {
             // Process each row in the selection
             for (let row = y; row < y + h; row++) {
@@ -262,6 +268,100 @@ const PixelSort = (function () {
                         data[idx + 1] = noised[i].g;
                         data[idx + 2] = noised[i].b;
                         data[idx + 3] = noised[i].a;
+                    }
+                }
+            }
+        }
+
+        // ============================================
+        // Post-Processing: Feather Edges
+        // ============================================
+        if (options.feather && options.featherRadius > 0 && originalData) {
+            const radius = options.featherRadius;
+            const { selectionPoints } = options;
+            const hasPolygon = selectionPoints && selectionPoints.length > 2;
+
+            // Helper: distance from point to line segment
+            function pointToLineDistance(px, py, x1, y1, x2, y2) {
+                const A = px - x1;
+                const B = py - y1;
+                const C = x2 - x1;
+                const D = y2 - y1;
+
+                const dot = A * C + B * D;
+                const len_sq = C * C + D * D;
+                let param = -1;
+                if (len_sq !== 0) {
+                    param = dot / len_sq;
+                }
+
+                let xx, yy;
+
+                if (param < 0) {
+                    xx = x1;
+                    yy = y1;
+                } else if (param > 1) {
+                    xx = x2;
+                    yy = y2;
+                } else {
+                    xx = x1 + param * C;
+                    yy = y1 + param * D;
+                }
+
+                const dx = px - xx;
+                const dy = py - yy;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+
+            // Helper: get shortest distance from a point to the boundary
+            function getDistanceToBoundary(px, py) {
+                if (hasPolygon) {
+                    let minDist = Infinity;
+                    const vs = selectionPoints;
+                    for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+                        const d = pointToLineDistance(px, py, vs[j].x, vs[j].y, vs[i].x, vs[i].y);
+                        if (d < minDist) minDist = d;
+                    }
+                    return minDist;
+                } else {
+                    // Rectangular boundary
+                    const dx1 = Math.abs(px - x);
+                    const dx2 = Math.abs(px - (x + w));
+                    const dy1 = Math.abs(py - y);
+                    const dy2 = Math.abs(py - (y + h));
+                    return Math.min(dx1, dx2, dy1, dy2);
+                }
+            }
+
+            // Blend inside the bounding box
+            for (let row = y; row < y + h; row++) {
+                for (let col = x; col < x + w; col++) {
+                    const dist = getDistanceToBoundary(col, row);
+
+                    if (dist < radius) {
+                        // Smoothstep blending [0, 1] based on distance from boundary to inner radius limit
+                        const t = Math.max(0, Math.min(1, dist / radius));
+                        const factor = t * t * (3 - 2 * t);
+
+                        const idx = (row * imgWidth + col) * 4;
+
+                        // Original pixel
+                        const origR = originalData[idx];
+                        const origG = originalData[idx + 1];
+                        const origB = originalData[idx + 2];
+                        const origA = originalData[idx + 3];
+
+                        // Sorted pixel
+                        const sortR = data[idx];
+                        const sortG = data[idx + 1];
+                        const sortB = data[idx + 2];
+                        const sortA = data[idx + 3];
+
+                        // Lerp: factor=0 means use original block boundary edge color. factor=1 means use fully sorted central color.
+                        data[idx] = origR + (sortR - origR) * factor;
+                        data[idx + 1] = origG + (sortG - origG) * factor;
+                        data[idx + 2] = origB + (sortB - origB) * factor;
+                        data[idx + 3] = origA + (sortA - origA) * factor;
                     }
                 }
             }

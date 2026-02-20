@@ -46,6 +46,11 @@ const threshUpperNum = $('#threshold-upper-num');
 const noiseSlider = $('#noise-amount');
 const noiseNum = $('#noise-amount-num');
 
+// Feather Edge controls
+const chkFeather = $('#chk-feather');
+const featherSlider = $('#feather-radius');
+const featherNum = $('#feather-radius-num');
+
 // Filter controls
 const filterGroup = $('#filter-group');
 const filterIntensityRow = $('#filter-intensity-row');
@@ -65,6 +70,8 @@ const state = {
     thresholdLower: 50,
     thresholdUpper: 200,
     noiseAmount: 0,
+    feather: true,          // Enable smooth edges
+    featherRadius: 20,      // Smooth edges radius
     selection: null,        // { x, y, w, h } in canvas coords
     history: [],            // Array of ImageData snapshots
     historyIndex: -1,       // Current position in history (-1 = no history)
@@ -122,6 +129,8 @@ async function saveState() {
             thresholdLower: state.thresholdLower,
             thresholdUpper: state.thresholdUpper,
             noiseAmount: state.noiseAmount,
+            feather: state.feather,
+            featherRadius: state.featherRadius,
             imageLoaded: state.imageLoaded,
         }, 'settings');
 
@@ -154,6 +163,8 @@ async function restoreState() {
             state.thresholdLower = settings.thresholdLower ?? 50;
             state.thresholdUpper = settings.thresholdUpper ?? 200;
             state.noiseAmount = settings.noiseAmount ?? 0;
+            state.feather = settings.feather ?? true;
+            state.featherRadius = settings.featherRadius ?? 20;
             state.imageLoaded = settings.imageLoaded || false;
 
             // Restore UI controls
@@ -169,6 +180,12 @@ async function restoreState() {
             threshUpperNum.value = state.thresholdUpper;
             noiseSlider.value = state.noiseAmount;
             noiseNum.value = state.noiseAmount;
+            chkFeather.checked = state.feather;
+            featherSlider.value = state.featherRadius;
+            featherNum.value = state.featherRadius;
+
+            // Toggle feather slider visibility based on checkbox
+            document.getElementById('feather-row').style.display = state.feather ? 'flex' : 'none';
         }
 
         // Restore original image
@@ -325,6 +342,13 @@ function syncPair(slider, numInput, stateProp) {
 syncPair(threshLowerSlider, threshLowerNum, 'thresholdLower');
 syncPair(threshUpperSlider, threshUpperNum, 'thresholdUpper');
 syncPair(noiseSlider, noiseNum, 'noiseAmount');
+syncPair(featherSlider, featherNum, 'featherRadius');
+
+chkFeather.addEventListener('change', () => {
+    state.feather = chkFeather.checked;
+    document.getElementById('feather-row').style.display = state.feather ? 'flex' : 'none';
+    hotApplySort();
+});
 
 // Filter intensity sync
 filterIntensitySlider.addEventListener('input', () => {
@@ -852,6 +876,8 @@ function performSort() {
         thresholdLower: state.thresholdLower,
         thresholdUpper: state.thresholdUpper,
         noiseAmount: state.noiseAmount,
+        feather: state.feather,
+        featherRadius: state.featherRadius,
         selectionPoints: chkLassoMode.checked ? state.selectionPoints : null
     };
 

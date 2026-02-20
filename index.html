@@ -103,6 +103,22 @@
         </div>
       </div>
 
+      <!-- Feather Edge -->
+      <div class="control-group">
+        <label class="control-label">Feather Edge</label>
+        <div class="chk-group" style="display:flex; align-items:center; gap:0.4rem; margin-bottom: 0.5rem">
+          <input type="checkbox" id="chk-feather" checked
+            data-tooltip="Blend sorted pixels with the original image near the selection boundary">
+          <label for="chk-feather" style="font-size:0.75rem; color:var(--fg-muted); cursor:pointer">Enable
+            Smoothing</label>
+        </div>
+        <div class="slider-row" id="feather-row">
+          <span class="slider-label" data-tooltip="Feather radius in pixels">Radius</span>
+          <input type="range" id="feather-radius" min="1" max="100" value="20" class="slider">
+          <input type="number" id="feather-radius-num" min="1" max="100" value="20" class="num-input">
+        </div>
+      </div>
+
       <div class="separator"></div>
 
       <!-- Filters -->
