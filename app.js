@@ -1094,6 +1094,37 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ============================================
+// Theme Toggle
+// ============================================
+
+const btnTheme = $('#btn-theme');
+const iconSun = $('#theme-icon-sun');
+const iconMoon = $('#theme-icon-moon');
+
+function applyTheme(dark) {
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    iconSun.style.display = dark ? 'none' : 'block';
+    iconMoon.style.display = dark ? 'block' : 'none';
+}
+
+// Load saved preference; default to light if none
+const savedTheme = localStorage.getItem('drift-theme');
+if (savedTheme) {
+    applyTheme(savedTheme === 'dark');
+} else {
+    // Force light theme as default
+    applyTheme(false);
+}
+
+
+btnTheme.addEventListener('click', () => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const newTheme = !isDark;
+    applyTheme(newTheme);
+    localStorage.setItem('drift-theme', newTheme ? 'dark' : 'light');
+});
+
+// ============================================
 // Init
 // ============================================
 

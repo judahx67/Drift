@@ -17,6 +17,19 @@
   --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* Dark Theme */
+[data-theme="dark"] {
+  --bg: #1a1a1e;
+  --bg-alt: #242428;
+  --fg: #e8e8e0;
+  --fg-muted: #888;
+  --border: #555;
+  --border-light: #444;
+  --accent: #e8e8e0;
+  --accent-fg: #1a1a1e;
+  --selection-color: #ff5555;
+}
+
 /* ============================================
    Reset & Base
    ============================================ */
@@ -43,6 +56,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 /* ============================================
@@ -55,12 +69,19 @@ body {
   width: 100%;
 }
 
+#app-header .header-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+}
+
 #app-header .logo-container {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  margin-bottom: 0.25rem;
 }
 
 #app-header .brand-logo {
@@ -865,4 +886,61 @@ button:disabled:hover {
     flex: 1 1 40%;
     /* allow buttons to share a row */
   }
+}
+
+/* ============================================
+   Theme Toggle
+   ============================================ */
+
+.theme-toggle {
+  background: none;
+  border: 1px solid var(--border-light);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--fg-muted);
+  transition: color var(--transition), border-color var(--transition);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  color: var(--fg);
+  border-color: var(--fg);
+  background: transparent;
+}
+
+/* ============================================
+   Footer
+   ============================================ */
+
+#app-footer {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  width: 100%;
+}
+
+#app-footer p {
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+}
+
+.footer-credit {
+  margin-top: 0.4rem;
+  font-size: 0.65rem !important;
+  opacity: 0.6;
+}
+
+.footer-credit a {
+  color: var(--fg-muted);
+  text-decoration: none;
+}
+
+.footer-credit a:hover {
+  color: var(--fg);
+  text-decoration: underline;
 }
