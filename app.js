@@ -104,16 +104,11 @@ function openDB() {
 
 async function saveState() {
     try {
-        const db = await openDB();
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-
-        // Save canvas as blob
+        // Resolve all async data BEFORE opening the transaction
         const blob = await new Promise(resolve => {
             canvas.toBlob(resolve, 'image/png');
         });
 
-        // Save original image as data URL
         let origDataUrl = null;
         if (state.originalImage) {
             const tmpCanvas = document.createElement('canvas');
@@ -122,6 +117,11 @@ async function saveState() {
             tmpCanvas.getContext('2d').drawImage(state.originalImage, 0, 0);
             origDataUrl = tmpCanvas.toDataURL('image/png');
         }
+
+        // Now open the transaction — all puts are synchronous from here
+        const db = await openDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
 
         store.put(blob, 'canvasBlob');
         store.put(origDataUrl, 'originalImage');

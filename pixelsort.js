@@ -13,7 +13,6 @@ const PixelSort = (function () {
     }
 
     function getGamma(r, g, b) {
-        // Perceived luminance via gamma-corrected sRGB
         const linearR = Math.pow(r / 255, 2.2);
         const linearG = Math.pow(g / 255, 2.2);
         const linearB = Math.pow(b / 255, 2.2);
@@ -47,7 +46,6 @@ const PixelSort = (function () {
         return rgbToHsl(r, g, b).s;
     }
 
-    // Map mode name to extractor function
     function getPixelValue(r, g, b, mode) {
         switch (mode) {
             case 'brightness': return getBrightness(r, g, b);
@@ -61,129 +59,43 @@ const PixelSort = (function () {
         }
     }
 
+    // Normalize pixel value to 0-255 range for threshold checks
+    function normalizeValue(val, mode) {
+        if (mode === 'hue') return (val / 360) * 255;
+        if (mode === 'saturation') return (val / 100) * 255;
+        return val;
+    }
+
     // ============================================
     // Polygon Mask Geometry
     // ============================================
 
-    /**
-     * Ray-Casting algorithm to check if a point (x, y) is inside a polygon defined by points.
-     */
-    function isPointInPolygon(point, vs) {
-        if (!vs || vs.length < 3) return true; // Treat as a standard rectangle if no polygon
-
-        const x = point.x, y = point.y;
+    function isPointInPolygon(px, py, vs) {
+        if (!vs || vs.length < 3) return true;
         let inside = false;
-
         for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
             const xi = vs[i].x, yi = vs[i].y;
             const xj = vs[j].x, yj = vs[j].y;
-
-            const intersect = ((yi > y) !== (yj > y))
-                && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+            const intersect = ((yi > py) !== (yj > py))
+                && (px < (xj - xi) * (py - yi) / (yj - yi) + xi);
             if (intersect) inside = !inside;
         }
         return inside;
     }
 
     // ============================================
-    // Interval Detection
+    // Core Sort Function (optimized for large images)
     // ============================================
 
-    /**
-     * Split a line of pixels into intervals based on threshold and polygon mask.
-     *
-     * @param {Array} pixels - Array of { x, y, r, g, b, a, idx... }
-     * @param {Object} options - { mode, thresholdLower, thresholdUpper, selectionPoints }
-     * @returns {Array} Array of intervals, each an array of pixel objects
-     */
-    function detectIntervals(pixels, options) {
-        const { mode, thresholdLower: lower, thresholdUpper: upper, selectionPoints } = options;
-        const intervals = [];
-        let current = [];
-
-        const hasPolygon = selectionPoints && selectionPoints.length > 2;
-
-        for (let i = 0; i < pixels.length; i++) {
-            const p = pixels[i];
-
-            // 1. Check if inside polygon mask (if provided)
-            let inMask = true;
-            if (hasPolygon) {
-                inMask = isPointInPolygon({ x: p.x, y: p.y }, selectionPoints);
-            }
-
-            // 2. Check threshold
-            const val = getPixelValue(p.r, p.g, p.b, mode);
-            let normVal = val;
-            if (mode === 'hue') normVal = (val / 360) * 255;
-            if (mode === 'saturation') normVal = (val / 100) * 255;
-
-            // Pixel is in interval ONLY if inside Mask AND within Threshold bounds
-            if (inMask && normVal >= lower && normVal <= upper) {
-                current.push(p);
-            } else {
-                if (current.length > 1) {
-                    intervals.push(current);
-                }
-                current = [];
-            }
-        }
-        if (current.length > 1) {
-            intervals.push(current);
-        }
-        return intervals;
-    }
-
-    // ============================================
-    // Noise Function
-    // ============================================
-
-    /**
-     * Apply noise to a sorted interval by randomly swapping some pixels.
-     * @param {Array} pixels - Sorted array of pixel objects
-     * @param {number} amount - Noise amount 0-100 (percentage of pixels to swap)
-     * @returns {Array} Modified pixel array
-     */
-    function applyNoise(pixels, amount) {
-        if (amount <= 0 || pixels.length < 2) return pixels;
-
-        const result = [...pixels];
-        const swapCount = Math.floor((amount / 100) * result.length);
-
-        for (let i = 0; i < swapCount; i++) {
-            const a = Math.floor(Math.random() * result.length);
-            const b = Math.floor(Math.random() * result.length);
-            // Swap the pixel color data (keep original positions)
-            const temp = { r: result[a].r, g: result[a].g, b: result[a].b, a: result[a].a };
-            result[a].r = result[b].r;
-            result[a].g = result[b].g;
-            result[a].b = result[b].b;
-            result[a].a = result[b].a;
-            result[b].r = temp.r;
-            result[b].g = temp.g;
-            result[b].b = temp.b;
-            result[b].a = temp.a;
-        }
-        return result;
-    }
-
-    // ============================================
-    // Core Sort Function
-    // ============================================
-
-    /**
-     * Sort pixels within a selected region of an ImageData.
-     *
-     * @param {ImageData} imageData - The full image data
-     * @param {Object} selection - { x, y, w, h } in pixel coordinates
-     * @param {Object} options - { mode, direction, thresholdLower, thresholdUpper, noiseAmount, selectionPoints }
-     * @returns {ImageData} Modified image data (mutated in place)
-     */
     function sort(imageData, selection, options) {
         const { mode, direction, noiseAmount } = options;
         const data = imageData.data;
         const imgWidth = imageData.width;
         const { x, y, w, h } = selection;
+        const lower = options.thresholdLower;
+        const upper = options.thresholdUpper;
+        const selectionPoints = options.selectionPoints;
+        const hasPolygon = selectionPoints && selectionPoints.length > 2;
 
         // Cache original data for feather blending later
         let originalData = null;
@@ -191,83 +103,66 @@ const PixelSort = (function () {
             originalData = new Uint8ClampedArray(data);
         }
 
-        if (direction === 'horizontal') {
-            // Process each row in the selection
-            for (let row = y; row < y + h; row++) {
-                // Extract pixels for this row within the selection
-                const pixels = [];
-                for (let col = x; col < x + w; col++) {
-                    const idx = (row * imgWidth + col) * 4;
-                    pixels.push({
-                        x: col,
-                        y: row,
-                        r: data[idx],
-                        g: data[idx + 1],
-                        b: data[idx + 2],
-                        a: data[idx + 3],
-                        origCol: col,
-                    });
+        // Pre-build polygon mask bitmap for fast lookup (avoids per-pixel ray casting per line)
+        let polygonMask = null;
+        if (hasPolygon) {
+            polygonMask = new Uint8Array(w * h);
+            for (let row = 0; row < h; row++) {
+                for (let col = 0; col < w; col++) {
+                    polygonMask[row * w + col] = isPointInPolygon(x + col, y + row, selectionPoints) ? 1 : 0;
                 }
+            }
+        }
 
-                // Detect intervals and sort each one
-                const intervals = detectIntervals(pixels, options);
+        // Process lines (rows for horizontal, columns for vertical)
+        const lineCount = direction === 'horizontal' ? h : w;
 
-                for (const interval of intervals) {
-                    // Remember the original positions
-                    const positions = interval.map(p => p.origCol);
+        for (let lineIdx = 0; lineIdx < lineCount; lineIdx++) {
+            const lineLen = direction === 'horizontal' ? w : h;
 
-                    // Sort by the chosen mode
-                    interval.sort((a, b) => {
-                        return getPixelValue(a.r, a.g, a.b, mode) - getPixelValue(b.r, b.g, b.b, mode);
-                    });
+            // Build flat arrays of byte-offsets, threshold-normalized values, and mask flags
+            const indices = new Int32Array(lineLen);
+            const values = new Float32Array(lineLen);
+            const inMask = polygonMask ? new Uint8Array(lineLen) : null;
 
-                    // Apply noise
-                    const noised = applyNoise(interval, noiseAmount);
+            for (let i = 0; i < lineLen; i++) {
+                let row, col;
+                if (direction === 'horizontal') {
+                    row = y + lineIdx;
+                    col = x + i;
+                } else {
+                    row = y + i;
+                    col = x + lineIdx;
+                }
+                const idx = (row * imgWidth + col) * 4;
+                indices[i] = idx;
+                values[i] = normalizeValue(getPixelValue(data[idx], data[idx + 1], data[idx + 2], mode), mode);
 
-                    // Write back to image data at original positions
-                    for (let i = 0; i < positions.length; i++) {
-                        const idx = (row * imgWidth + positions[i]) * 4;
-                        data[idx] = noised[i].r;
-                        data[idx + 1] = noised[i].g;
-                        data[idx + 2] = noised[i].b;
-                        data[idx + 3] = noised[i].a;
+                if (polygonMask) {
+                    if (direction === 'horizontal') {
+                        inMask[i] = polygonMask[lineIdx * w + i];
+                    } else {
+                        inMask[i] = polygonMask[i * w + lineIdx];
                     }
                 }
             }
-        } else {
-            // Vertical: process each column in the selection
-            for (let col = x; col < x + w; col++) {
-                const pixels = [];
-                for (let row = y; row < y + h; row++) {
-                    const idx = (row * imgWidth + col) * 4;
-                    pixels.push({
-                        x: col,
-                        y: row,
-                        r: data[idx],
-                        g: data[idx + 1],
-                        b: data[idx + 2],
-                        a: data[idx + 3],
-                        origRow: row,
-                    });
-                }
 
-                const intervals = detectIntervals(pixels, options);
+            // Detect intervals and sort each one (inline for speed)
+            let intervalStart = -1;
+            for (let i = 0; i <= lineLen; i++) {
+                const inInterval = i < lineLen &&
+                    (!inMask || inMask[i]) &&
+                    values[i] >= lower && values[i] <= upper;
 
-                for (const interval of intervals) {
-                    const positions = interval.map(p => p.origRow);
-
-                    interval.sort((a, b) => {
-                        return getPixelValue(a.r, a.g, a.b, mode) - getPixelValue(b.r, b.g, b.b, mode);
-                    });
-
-                    const noised = applyNoise(interval, noiseAmount);
-
-                    for (let i = 0; i < positions.length; i++) {
-                        const idx = (positions[i] * imgWidth + col) * 4;
-                        data[idx] = noised[i].r;
-                        data[idx + 1] = noised[i].g;
-                        data[idx + 2] = noised[i].b;
-                        data[idx + 3] = noised[i].a;
+                if (inInterval) {
+                    if (intervalStart === -1) intervalStart = i;
+                } else {
+                    if (intervalStart !== -1) {
+                        const len = i - intervalStart;
+                        if (len > 1) {
+                            sortInterval(data, indices, intervalStart, len, mode, noiseAmount);
+                        }
+                        intervalStart = -1;
                     }
                 }
             }
@@ -277,97 +172,144 @@ const PixelSort = (function () {
         // Post-Processing: Feather Edges
         // ============================================
         if (options.feather && options.featherRadius > 0 && originalData) {
-            const radius = options.featherRadius;
-            const { selectionPoints } = options;
-            const hasPolygon = selectionPoints && selectionPoints.length > 2;
+            applyFeathering(data, originalData, imgWidth, x, y, w, h, options.featherRadius, selectionPoints);
+        }
 
-            // Helper: distance from point to line segment
-            function pointToLineDistance(px, py, x1, y1, x2, y2) {
-                const A = px - x1;
-                const B = py - y1;
-                const C = x2 - x1;
-                const D = y2 - y1;
+        return imageData;
+    }
 
-                const dot = A * C + B * D;
-                const len_sq = C * C + D * D;
-                let param = -1;
-                if (len_sq !== 0) {
-                    param = dot / len_sq;
-                }
+    // Sort a contiguous interval of pixels in-place
+    function sortInterval(data, indices, start, len, mode, noiseAmount) {
+        // Build sortable entries
+        const entries = new Array(len);
+        for (let i = 0; i < len; i++) {
+            const idx = indices[start + i];
+            entries[i] = {
+                idx: idx,
+                val: getPixelValue(data[idx], data[idx + 1], data[idx + 2], mode),
+                r: data[idx], g: data[idx + 1], b: data[idx + 2], a: data[idx + 3]
+            };
+        }
 
-                let xx, yy;
+        // Sort by pixel value
+        entries.sort((a, b) => a.val - b.val);
 
-                if (param < 0) {
-                    xx = x1;
-                    yy = y1;
-                } else if (param > 1) {
-                    xx = x2;
-                    yy = y2;
-                } else {
-                    xx = x1 + param * C;
-                    yy = y1 + param * D;
-                }
+        // Apply noise (random swaps)
+        if (noiseAmount > 0 && len > 1) {
+            const swapCount = Math.floor((noiseAmount / 100) * len);
+            for (let s = 0; s < swapCount; s++) {
+                const a = Math.floor(Math.random() * len);
+                const b = Math.floor(Math.random() * len);
+                const tmpR = entries[a].r, tmpG = entries[a].g, tmpB = entries[a].b, tmpA = entries[a].a;
+                entries[a].r = entries[b].r; entries[a].g = entries[b].g;
+                entries[a].b = entries[b].b; entries[a].a = entries[b].a;
+                entries[b].r = tmpR; entries[b].g = tmpG;
+                entries[b].b = tmpB; entries[b].a = tmpA;
+            }
+        }
 
-                const dx = px - xx;
-                const dy = py - yy;
-                return Math.sqrt(dx * dx + dy * dy);
+        // Write back at original positions
+        for (let i = 0; i < len; i++) {
+            const idx = indices[start + i];
+            data[idx] = entries[i].r;
+            data[idx + 1] = entries[i].g;
+            data[idx + 2] = entries[i].b;
+            data[idx + 3] = entries[i].a;
+        }
+    }
+
+    // Feather blending pass
+    function applyFeathering(data, originalData, imgWidth, x, y, w, h, radius, selectionPoints) {
+        const hasPolygon = selectionPoints && selectionPoints.length > 2;
+        const radiusSq = radius * radius;
+
+        if (hasPolygon) {
+            // Polygon feathering — pre-extract edge data for speed
+            const vs = selectionPoints;
+            const numEdges = vs.length;
+            const ex = new Float32Array(numEdges);
+            const ey = new Float32Array(numEdges);
+            const edx = new Float32Array(numEdges);
+            const edy = new Float32Array(numEdges);
+            const elenSq = new Float32Array(numEdges);
+            for (let i = 0, j = numEdges - 1; i < numEdges; j = i++) {
+                ex[i] = vs[j].x;
+                ey[i] = vs[j].y;
+                edx[i] = vs[i].x - vs[j].x;
+                edy[i] = vs[i].y - vs[j].y;
+                elenSq[i] = edx[i] * edx[i] + edy[i] * edy[i];
             }
 
-            // Helper: get shortest distance from a point to the boundary
-            function getDistanceToBoundary(px, py) {
-                if (hasPolygon) {
-                    let minDist = Infinity;
-                    const vs = selectionPoints;
-                    for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-                        const d = pointToLineDistance(px, py, vs[j].x, vs[j].y, vs[i].x, vs[i].y);
-                        if (d < minDist) minDist = d;
-                    }
-                    return minDist;
-                } else {
-                    // Rectangular boundary
-                    const dx1 = Math.abs(px - x);
-                    const dx2 = Math.abs(px - (x + w));
-                    const dy1 = Math.abs(py - y);
-                    const dy2 = Math.abs(py - (y + h));
-                    return Math.min(dx1, dx2, dy1, dy2);
-                }
-            }
-
-            // Blend inside the bounding box
             for (let row = y; row < y + h; row++) {
                 for (let col = x; col < x + w; col++) {
-                    const dist = getDistanceToBoundary(col, row);
+                    // Find min squared distance to any edge
+                    let minDistSq = Infinity;
+                    for (let i = 0; i < numEdges; i++) {
+                        const A = col - ex[i];
+                        const B = row - ey[i];
+                        const len = elenSq[i];
+                        let param = len !== 0 ? (A * edx[i] + B * edy[i]) / len : -1;
+                        if (param < 0) param = 0;
+                        else if (param > 1) param = 1;
+                        const dx = A - param * edx[i];
+                        const dy = B - param * edy[i];
+                        const dSq = dx * dx + dy * dy;
+                        if (dSq < minDistSq) minDistSq = dSq;
+                    }
 
-                    if (dist < radius) {
-                        // Smoothstep blending [0, 1] based on distance from boundary to inner radius limit
-                        const t = Math.max(0, Math.min(1, dist / radius));
+                    if (minDistSq < radiusSq) {
+                        const dist = Math.sqrt(minDistSq);
+                        const t = dist / radius;
                         const factor = t * t * (3 - 2 * t);
-
                         const idx = (row * imgWidth + col) * 4;
+                        data[idx] = originalData[idx] + (data[idx] - originalData[idx]) * factor;
+                        data[idx + 1] = originalData[idx + 1] + (data[idx + 1] - originalData[idx + 1]) * factor;
+                        data[idx + 2] = originalData[idx + 2] + (data[idx + 2] - originalData[idx + 2]) * factor;
+                        data[idx + 3] = originalData[idx + 3] + (data[idx + 3] - originalData[idx + 3]) * factor;
+                    }
+                }
+            }
+        } else {
+            // Rectangular feathering — only process the border strip, skip the center
+            for (let row = y; row < y + h; row++) {
+                const dy1 = row - y;
+                const dy2 = (y + h) - row;
+                const minDy = dy1 < dy2 ? dy1 : dy2;
 
-                        // Original pixel
-                        const origR = originalData[idx];
-                        const origG = originalData[idx + 1];
-                        const origB = originalData[idx + 2];
-                        const origA = originalData[idx + 3];
-
-                        // Sorted pixel
-                        const sortR = data[idx];
-                        const sortG = data[idx + 1];
-                        const sortB = data[idx + 2];
-                        const sortA = data[idx + 3];
-
-                        // Lerp: factor=0 means use original block boundary edge color. factor=1 means use fully sorted central color.
-                        data[idx] = origR + (sortR - origR) * factor;
-                        data[idx + 1] = origG + (sortG - origG) * factor;
-                        data[idx + 2] = origB + (sortB - origB) * factor;
-                        data[idx + 3] = origA + (sortA - origA) * factor;
+                if (minDy >= radius) {
+                    // Only need to blend left/right edges
+                    const maxCol = Math.min(x + radius, x + w);
+                    for (let col = x; col < maxCol; col++) {
+                        blendPixel(data, originalData, imgWidth, row, col, col - x, radius);
+                    }
+                    const minCol = Math.max(x + w - radius, x);
+                    for (let col = minCol; col < x + w; col++) {
+                        blendPixel(data, originalData, imgWidth, row, col, (x + w) - col, radius);
+                    }
+                } else {
+                    // Near top/bottom edge — process entire row
+                    for (let col = x; col < x + w; col++) {
+                        const dx1 = col - x;
+                        const dx2 = (x + w) - col;
+                        const minDx = dx1 < dx2 ? dx1 : dx2;
+                        const dist = minDy < minDx ? minDy : minDx;
+                        if (dist < radius) {
+                            blendPixel(data, originalData, imgWidth, row, col, dist, radius);
+                        }
                     }
                 }
             }
         }
+    }
 
-        return imageData;
+    function blendPixel(data, originalData, imgWidth, row, col, dist, radius) {
+        const t = dist / radius;
+        const factor = t * t * (3 - 2 * t);
+        const idx = (row * imgWidth + col) * 4;
+        data[idx] = originalData[idx] + (data[idx] - originalData[idx]) * factor;
+        data[idx + 1] = originalData[idx + 1] + (data[idx + 1] - originalData[idx + 1]) * factor;
+        data[idx + 2] = originalData[idx + 2] + (data[idx + 2] - originalData[idx + 2]) * factor;
+        data[idx + 3] = originalData[idx + 3] + (data[idx + 3] - originalData[idx + 3]) * factor;
     }
 
     // ============================================
