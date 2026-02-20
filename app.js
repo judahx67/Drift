@@ -22,6 +22,8 @@ const chkAutoUpdate = $('#chk-auto-update');
 const btnPreview = $('#btn-preview');
 const chkLassoMode = $('#chk-lasso-mode');
 const selectionOverlay = $('#selection-overlay');
+const lassoOverlay = $('#lasso-overlay');
+const lassoPolygon = $('#lasso-polygon');
 const selectionInfo = $('#selection-info');
 const selectionCoords = $('#selection-coords');
 
