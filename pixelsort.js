@@ -70,18 +70,7 @@ const PixelSort = (function () {
     // Polygon Mask Geometry
     // ============================================
 
-    function isPointInPolygon(px, py, vs) {
-        if (!vs || vs.length < 3) return true;
-        let inside = false;
-        for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-            const xi = vs[i].x, yi = vs[i].y;
-            const xj = vs[j].x, yj = vs[j].y;
-            const intersect = ((yi > py) !== (yj > py))
-                && (px < (xj - xi) * (py - yi) / (yj - yi) + xi);
-            if (intersect) inside = !inside;
-        }
-        return inside;
-    }
+    // Geometry maths completely replaced by native Canvas API in mask generations
 
     // ============================================
     // Core Sort Function (optimized for large images)
@@ -106,11 +95,29 @@ const PixelSort = (function () {
         // Pre-build polygon mask bitmap for fast lookup (avoids per-pixel ray casting per line)
         let polygonMask = null;
         if (hasPolygon) {
+            let maskCanvas;
+            if (typeof OffscreenCanvas !== 'undefined') {
+                maskCanvas = new OffscreenCanvas(w, h);
+            } else {
+                maskCanvas = document.createElement('canvas');
+                maskCanvas.width = w;
+                maskCanvas.height = h;
+            }
+            const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
+            maskCtx.fillStyle = '#FFF';
+            maskCtx.beginPath();
+            maskCtx.moveTo(selectionPoints[0].x - x, selectionPoints[0].y - y);
+            for (let i = 1; i < selectionPoints.length; i++) {
+                maskCtx.lineTo(selectionPoints[i].x - x, selectionPoints[i].y - y);
+            }
+            maskCtx.closePath();
+            maskCtx.fill();
+
+            const maskData = maskCtx.getImageData(0, 0, w, h).data;
             polygonMask = new Uint8Array(w * h);
-            for (let row = 0; row < h; row++) {
-                for (let col = 0; col < w; col++) {
-                    polygonMask[row * w + col] = isPointInPolygon(x + col, y + row, selectionPoints) ? 1 : 0;
-                }
+            for (let i = 0; i < w * h; i++) {
+                // Alpha > 127 is inside
+                polygonMask[i] = maskData[i * 4 + 3] > 127 ? 1 : 0;
             }
         }
 
@@ -221,47 +228,38 @@ const PixelSort = (function () {
     // Feather blending pass
     function applyFeathering(data, originalData, imgWidth, x, y, w, h, radius, selectionPoints) {
         const hasPolygon = selectionPoints && selectionPoints.length > 2;
-        const radiusSq = radius * radius;
 
         if (hasPolygon) {
-            // Polygon feathering — pre-extract edge data for speed
-            const vs = selectionPoints;
-            const numEdges = vs.length;
-            const ex = new Float32Array(numEdges);
-            const ey = new Float32Array(numEdges);
-            const edx = new Float32Array(numEdges);
-            const edy = new Float32Array(numEdges);
-            const elenSq = new Float32Array(numEdges);
-            for (let i = 0, j = numEdges - 1; i < numEdges; j = i++) {
-                ex[i] = vs[j].x;
-                ey[i] = vs[j].y;
-                edx[i] = vs[i].x - vs[j].x;
-                edy[i] = vs[i].y - vs[j].y;
-                elenSq[i] = edx[i] * edx[i] + edy[i] * edy[i];
+            // Polygon feathering — massively sped up using native Canvas blur
+            let maskCanvas;
+            if (typeof OffscreenCanvas !== 'undefined') {
+                maskCanvas = new OffscreenCanvas(w, h);
+            } else {
+                maskCanvas = document.createElement('canvas');
+                maskCanvas.width = w;
+                maskCanvas.height = h;
             }
+            const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
 
-            for (let row = y; row < y + h; row++) {
-                for (let col = x; col < x + w; col++) {
-                    // Find min squared distance to any edge
-                    let minDistSq = Infinity;
-                    for (let i = 0; i < numEdges; i++) {
-                        const A = col - ex[i];
-                        const B = row - ey[i];
-                        const len = elenSq[i];
-                        let param = len !== 0 ? (A * edx[i] + B * edy[i]) / len : -1;
-                        if (param < 0) param = 0;
-                        else if (param > 1) param = 1;
-                        const dx = A - param * edx[i];
-                        const dy = B - param * edy[i];
-                        const dSq = dx * dx + dy * dy;
-                        if (dSq < minDistSq) minDistSq = dSq;
-                    }
+            maskCtx.filter = `blur(${radius}px)`;
+            maskCtx.fillStyle = '#FFF';
 
-                    if (minDistSq < radiusSq) {
-                        const dist = Math.sqrt(minDistSq);
-                        const t = dist / radius;
-                        const factor = t * t * (3 - 2 * t);
-                        const idx = (row * imgWidth + col) * 4;
+            maskCtx.beginPath();
+            maskCtx.moveTo(selectionPoints[0].x - x, selectionPoints[0].y - y);
+            for (let i = 1; i < selectionPoints.length; i++) {
+                maskCtx.lineTo(selectionPoints[i].x - x, selectionPoints[i].y - y);
+            }
+            maskCtx.closePath();
+            maskCtx.fill();
+
+            const maskData = maskCtx.getImageData(0, 0, w, h).data;
+
+            for (let row = 0; row < h; row++) {
+                for (let col = 0; col < w; col++) {
+                    const alpha = maskData[(row * w + col) * 4 + 3];
+                    if (alpha < 255) {
+                        const factor = alpha / 255;
+                        const idx = ((y + row) * imgWidth + (x + col)) * 4;
                         data[idx] = originalData[idx] + (data[idx] - originalData[idx]) * factor;
                         data[idx + 1] = originalData[idx + 1] + (data[idx + 1] - originalData[idx + 1]) * factor;
                         data[idx + 2] = originalData[idx + 2] + (data[idx + 2] - originalData[idx + 2]) * factor;

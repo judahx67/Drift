@@ -561,6 +561,7 @@ function showSelectionOverlay(x, y, w, h) {
 
 function hideSelectionOverlay() {
     selectionOverlay.hidden = true;
+    if (lassoOverlay) lassoOverlay.hidden = true;
 }
 
 // ============================================
