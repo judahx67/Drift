@@ -163,6 +163,10 @@
       <div id="canvas-container">
         <canvas id="canvas"></canvas>
         <div id="selection-overlay" hidden></div>
+        <svg id="lasso-overlay" style="position:absolute; pointer-events:none; z-index:11" hidden>
+          <polygon id="lasso-polygon" fill="none" stroke="var(--selection-color)" stroke-width="2" stroke-dasharray="4"
+            vector-effect="non-scaling-stroke" />
+        </svg>
         <div id="processing-overlay">
           <div class="spinner"></div>
           <span>Sorting pixels…</span>
