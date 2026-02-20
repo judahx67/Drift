@@ -32,21 +32,47 @@ Everything runs in your browser. Nothing is uploaded.
    - Use **← Back** / **Forward →** to browse iterations.
    - Click **Export** to download the final image.
 
+## Architecture & Workflow
+
+```mermaid
+graph TD
+    classDef ui fill:#f5f5f0,stroke:#1a1a1a,stroke-width:2px,color:#1a1a1a
+    classDef engine fill:#eaeae5,stroke:#1a1a1a,stroke-width:2px,color:#1a1a1a,stroke-dasharray: 4 4
+    classDef storage fill:#1a1a1a,stroke:#1a1a1a,stroke-width:2px,color:#f5f5f0
+
+    subgraph Browser["Web Browser (Client-Side Only)"]
+        direction LR
+        
+        UI["UI / Canvas Interaction<br/>(app.js)"]:::ui
+        Engine["Pixel Sort Engine<br/>(pixelsort.js)"]:::engine
+        DB[("IndexedDB<br/>State Persistence")]:::storage
+        
+        UI -- "1. Draw Selection<br/>(Lasso / Box)" --> Engine
+        UI -- "2. Tweak Parameters<br/>(Threshold, Mode)" --> Engine
+        
+        Engine -. "Native Canvas Blur<br/>(Feathering Mask)" .-> Engine
+        Engine -- "3. Return Sorted<br/>ImageData" --> UI
+        
+        UI -- "4. Commit / Push<br/>to History" --> DB
+        DB -- "Restore Session<br/>on Reload" --> UI
+    end
+```
+
 ## Tech Stack
 
-- **HTML / CSS / JavaScript** — ES Modules
+- **HTML / CSS / Vanilla JS** — No heavy frameworks
 - **Vite** — Build tool and dev server
-- **Canvas 2D API** — pixel manipulation and CSS filters
-- **IndexedDB** — client-side state persistence
-- **JSZip** — batch history export as ZIP
+- **Canvas 2D API** — Pixel manipulation, masks, and CSS filters
+- **IndexedDB** — Client-side state persistence
+- **JSZip** — Batch history export as ZIP
 
 ## Credits & Inspiration
 
 This project was inspired by several excellent resources on pixel sorting:
 
-- **Acerola's YouTube Video**: [Pixel Sorting: The most overused glitch effect?](https://www.youtube.com/watch?v=HMmmBDRy-jE) — Fantastic breakdown of the math and soul of the effect.
-- **Satyarth's Original Implementation**: [pixelsort (GitHub)](https://github.com/satyarth/pixelsort) — The gold standard for command-line pixel sorting.
-- **Satyarth's Deep Dive**: [Pixel Sorting Article](https://satyarth.me/articles/pixel-sorting/) — A detailed technical explanation that helped shape this engine.
+- **Acerola's YouTube Video**: [Pixel Sorting: The most overused glitch effect?](https://www.youtube.com/watch?v=HMmmBDRy-jE) 
+- **Satyarth's Implementation**: [pixelsort (GitHub)](https://github.com/satyarth/pixelsort) 
+- **Satyarth's Deep Dive**: [Pixel Sorting Article](https://satyarth.me/articles/pixel-sorting/).
 
 ## License
 
