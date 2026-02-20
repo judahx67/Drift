@@ -594,33 +594,28 @@ function getPolygonBoundingBox(points) {
     };
 }
 
-// Draw the custom lasso polygon on the canvas (restoring from previewBase first)
-// Note: We don't use the DOM #selection-overlay for the polygon, we draw it directly on the canvas.
-// The DOM overlay will still be positioned for the bounding box, but hidden (so we don't have conflicting visuals).
+// Draw the custom lasso polygon using the SVG overlay
 function drawLassoPreview() {
-    if (!state.previewBase) return;
-
-    // 1. Restore the image
-    ctx.putImageData(state.previewBase, 0, 0);
-
-    // 2. Draw the polygon path
-    if (state.selectionPoints.length > 1) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(state.selectionPoints[0].x, state.selectionPoints[0].y);
-        for (let i = 1; i < state.selectionPoints.length; i++) {
-            ctx.lineTo(state.selectionPoints[i].x, state.selectionPoints[i].y);
-        }
-        // If not dragging anymore, close the path
-        if (!state.isDragging) {
-            ctx.closePath();
-        }
-        ctx.strokeStyle = '#ff3333';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]); // Dashed line to signify selection
-        ctx.stroke();
-        ctx.restore();
+    if (!state.selectionPoints || state.selectionPoints.length === 0) {
+        lassoOverlay.hidden = true;
+        return;
     }
+
+    const rect = canvas.getBoundingClientRect();
+    const containerRect = canvasContainer.getBoundingClientRect();
+    const canvasOffsetX = rect.left - containerRect.left;
+    const canvasOffsetY = rect.top - containerRect.top;
+
+    lassoOverlay.style.left = canvasOffsetX + 'px';
+    lassoOverlay.style.top = canvasOffsetY + 'px';
+    lassoOverlay.style.width = rect.width + 'px';
+    lassoOverlay.style.height = rect.height + 'px';
+    lassoOverlay.setAttribute('viewBox', `0 0 ${canvas.width} ${canvas.height}`);
+    lassoOverlay.hidden = false;
+
+    // The vector-effect="non-scaling-stroke" on the polygon ensures stroke-width stays consistent
+    const pointsStr = state.selectionPoints.map(p => `${p.x},${p.y}`).join(' ');
+    lassoPolygon.setAttribute('points', pointsStr);
 }
 
 // Bind mousedown to container to allow starting drag from outside
@@ -642,6 +637,7 @@ canvasContainer.addEventListener('mousedown', (e) => {
 
     state.selection = null;
     hideSelectionOverlay();
+    lassoOverlay.hidden = true;
 
     if (chkLassoMode.checked) {
         state.selectionPoints = [coords];
@@ -694,6 +690,7 @@ window.addEventListener('mouseup', (e) => {
         } else {
             state.selection = null;
             state.selectionPoints = [];
+            lassoOverlay.hidden = true;
             ctx.putImageData(state.previewBase, 0, 0);
             state.previewBase = null;
         }
@@ -740,12 +737,18 @@ chkLassoMode.addEventListener('change', () => {
     state.selectionPoints = [];
     state.dragStart = null;
     hideSelectionOverlay();
+    lassoOverlay.hidden = true;
     updateUI();
 });
 
 // Select All
 btnSelectAll.addEventListener('click', () => {
     if (!state.imageLoaded) return;
+
+    // Clear lasso entirely
+    state.selectionPoints = [];
+    chkLassoMode.checked = false;
+    lassoOverlay.hidden = true;
 
     // Restore any previous preview first
     if (state.previewBase) {
@@ -765,6 +768,10 @@ btnSelectAll.addEventListener('click', () => {
 
 // Clear selection
 btnClearSelection.addEventListener('click', () => {
+    // Clear lasso entirely
+    state.selectionPoints = [];
+    lassoOverlay.hidden = true;
+
     // Restore previewBase if we have one (discard live preview)
     if (state.previewBase) {
         ctx.putImageData(state.previewBase, 0, 0);
@@ -785,7 +792,9 @@ btnReset.addEventListener('click', () => {
     renderImage(state.originalImage);
     pushHistory();
     state.selection = null;
+    state.selectionPoints = [];
     hideSelectionOverlay();
+    lassoOverlay.hidden = true;
     updateUI();
     saveState();
 });

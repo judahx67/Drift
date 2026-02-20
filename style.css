@@ -303,7 +303,7 @@ button:disabled:hover {
 .num-input {
   font-family: var(--font);
   font-size: 0.8rem;
-  width: 3.5rem;
+  width: 4.5rem;
   padding: 0.25rem 0.35rem;
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
